@@ -230,16 +230,29 @@ class ParamCheckbox(BaseParam):
         input = QtWidgets.QCheckBox()
         if value is not None:
             input.setChecked(bool(value))
-        if connect is not None:
-            input.stateChanged.connect(connect)
-        input.clicked.connect(lambda x: self.set_value())
+        # Handling the input change signal differently here to allow for some error handling
+        # when the checkbox is clicked
+        self._connected_click_handler = connect
+        input.clicked.connect(self._click_handler)
         return input, False
 
     def _input_set_value(self, value):
         self.input.setChecked(bool(value))
+        if self._connected_click_handler is not None:
+            self._connected_click_handler()
 
     def _input_get_value(self):
         return int(self.input.isChecked())
+    
+    def _click_handler(self, _):
+        try:
+            if self._connected_click_handler is not None:
+                self._connected_click_handler()
+            self.set_value()
+        except Exception as e:
+            # Flip back the checkbox if the click resulted in an error
+            self.input.setChecked(not(self.input.isChecked()))
+            raise e
 
 
 def wrap_setter(piece, setter):

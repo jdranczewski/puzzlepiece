@@ -36,7 +36,20 @@ class TParamPiece(pzp.Piece):
         @setter_getter_return_param.set_getter(self)
         def setter_getter_return_param_getter(self):
             return self._setter_getter_return_param_value + 1
+
+        @pzp.param.base_param(self, 'error_param', 0)
+        def error_param(self, value):
+            # return 0
+            raise Exception('Setter exception')
         
+        @error_param.set_getter(self)
+        def error_param_getter(self):
+            # return 0
+            raise Exception('Getter exception')
+
+        @pzp.param.checkbox(self, 'error_checkbox', 0)
+        def error_param(self, value):
+            raise Exception('Setter exception')
         
 
 def test_base_param(qtbot, qapp):
@@ -193,5 +206,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     puzzle = pzp.Puzzle(app, "Test params")
     puzzle.add_piece("test", TParamPiece(puzzle), 0, 0)
+    from puzzlepiece.pieces import script
+    puzzle.add_piece("script", script.Piece(puzzle), 0, 1)
     puzzle.show()
     app.exec()
