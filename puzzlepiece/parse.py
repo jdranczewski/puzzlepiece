@@ -18,8 +18,6 @@ def parse_params(text, puzzle):
         piece, name = arg.split(":")
         if name in puzzle.pieces[piece].params:
             result.append(puzzle.pieces[piece].params[name])
-        elif name in puzzle.pieces[piece].readouts:
-            result.append(puzzle.pieces[piece].readouts[name])
         else:
             raise SyntaxError(f"Parameter parse error for {arg}")
     return result
@@ -65,7 +63,7 @@ def run(text, puzzle):
         elif task == 'get':
             piece, *param = params
             param = ":".join(param)
-            puzzle.pieces[piece].readouts[param].get_value()
+            puzzle.pieces[piece].params[param].get_value()
         elif task == 'sleep':
             duration = params[0]
             time.sleep(float(duration))

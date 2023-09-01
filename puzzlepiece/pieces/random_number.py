@@ -16,12 +16,13 @@ class Piece(pzp.Piece):
         def seed(self, value):
             random.seed(value)
             return value
-    
+        
     def define_readouts(self):
-        @pzp.readout.define(self, "Random number")
+        @pzp.param.readout(self, "Random number")
         def random_number(self):
             return random.randint(self.params['min'].get_value(),
                                   self.params['max'].get_value())
+     
 
     def define_actions(self):
         @pzp.action.define(self, "Dialog")

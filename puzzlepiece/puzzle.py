@@ -163,7 +163,7 @@ class Puzzle(QtWidgets.QWidget):
 
         for piece_name in self.pieces:
             piece_item = QtWidgets.QTreeWidgetItem(tree, (piece_name,))
-            for attr in ('params', 'readouts', 'actions'):
+            for attr in ('params', 'actions'):
                 keys = getattr(self.pieces[piece_name], attr)
                 tree_item = QtWidgets.QTreeWidgetItem(piece_item, (attr,))
                 for item in keys:

@@ -21,8 +21,8 @@ class Piece(QtWidgets.QGroupBox):
 
         #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.AbstractParam`)
         self.params = {}
-        #: dict: A dictionary of this Piece's readouts (see :class:`~puzzlepiece.readout.Readout`)
-        self.readouts = {}
+        #: dict: A reference to the param dictionary for backwards-compatibility
+        self.readouts = self.params
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
         self.shortcuts = {}
@@ -39,7 +39,6 @@ class Piece(QtWidgets.QGroupBox):
 
         control_layout = QtWidgets.QVBoxLayout()
         control_layout.addLayout(self.param_layout())
-        control_layout.addLayout(self.readout_layout())
         control_layout.addLayout(self.action_layout())
         self.layout.addLayout(control_layout)
 
@@ -65,18 +64,6 @@ class Piece(QtWidgets.QGroupBox):
         numrows = math.ceil(len(visible_params) / wrap)
         for i, key in enumerate(visible_params):
             layout.addWidget(self.params[key], i%numrows, i//numrows)
-        return layout
-
-    def readout_layout(self):
-        """
-        Genereates a `QVBoxLayout` for the readouts.
-
-        :rtype: QtWidgets.QVBoxLayout
-        """
-        layout = QtWidgets.QVBoxLayout()
-        for key in self.readouts:
-            if self.readouts[key].visible:
-                layout.addWidget(self.readouts[key])
         return layout
 
     def action_layout(self, wrap=2):
