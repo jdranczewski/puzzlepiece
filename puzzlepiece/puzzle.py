@@ -57,8 +57,13 @@ class Puzzle(QtWidgets.QWidget):
         # The list stores all the direct children of this QWidget
         self._toplevel = []
 
+        self.wrapper_layout = QtWidgets.QGridLayout()
+        self.setLayout(self.wrapper_layout)
+
         self.layout = QtWidgets.QGridLayout()
-        self.setLayout(self.layout)
+        self.wrapper_layout.addLayout(self.layout, 0, 0)
+
+        self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
 
         sys.excepthook = self._excepthook
 
@@ -179,6 +184,7 @@ class Puzzle(QtWidgets.QWidget):
                 action = self.pieces[piece_name].actions[action_name]
                 action_item = QtWidgets.QTreeWidgetItem(tree_item, (action_name, ))
                 action_item.puzzlepiece_descriptor = "{}:{}".format(piece_name, action_name)
+
                 button = QtWidgets.QToolButton()
                 icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_MediaPlay)
                 button.setIcon(icon)
@@ -187,26 +193,48 @@ class Puzzle(QtWidgets.QWidget):
 
         for i in range(0, 3):
             tree.header().setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+        label = QtWidgets.QLabel()
+        label.setText("Double-click on any row to copy the param/action identifier for use in scripts.")
+        label.setWordWrap(True)
+        
         layout.addWidget(tree)
+        layout.addWidget(label)
+
         dialog.setLayout(layout)
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
 
     def _export_setup(self):
+        dialog = QtWidgets.QDialog(self)
+        layout = QtWidgets.QVBoxLayout()
+
+        label = QtWidgets.QLabel()
+        label.setText("The script below sets all currently params that don't have setters or getters to the current values.")
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
         text = ""
         for piece_name in self.pieces:
             keys = self.pieces[piece_name].params
             for key in keys:
                 param = self.pieces[piece_name].params[key]
-                if param.visible and param._setter is None:
+                if param.visible and param._setter is None and param._getter is None:
                     text += "set:{}:{}:{}\n".format(piece_name, key, param.get_value())
 
-        dialog = QtWidgets.QDialog(self)
-        layout = QtWidgets.QVBoxLayout()
         text_box = QtWidgets.QPlainTextEdit()
         text_box.setPlainText(text)
         layout.addWidget(text_box)
+
+        button = QtWidgets.QPushButton("Save")
+        def __save_export():
+            fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
+            with open(fname, 'w') as f:
+                f.write(text_box.toPlainText())
+        button.clicked.connect(__save_export)
+        layout.addWidget(button)
+
         dialog.setLayout(layout)
         dialog.show()
         dialog.raise_()
@@ -215,6 +243,30 @@ class Puzzle(QtWidgets.QWidget):
     def _call_stop(self):
         for piece_name in self.pieces:
             self.pieces[piece_name].call_stop()
+
+    def _button_layout(self):
+        layout = QtWidgets.QHBoxLayout()
+
+        for function, icon, text in zip(
+            (self._docs, self._export_setup, self._call_stop),
+            (
+                QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation,
+                QtWidgets.QStyle.StandardPixmap.SP_DialogSaveButton,
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserStop
+            ),
+            (
+                "Tree (F1)",
+                "Export (F2)",
+                "STOP (F3)"
+            )
+        ):
+            button = QtWidgets.QPushButton(text)
+            icon = self.style().standardIcon(icon)
+            button.setIcon(icon)
+            button.clicked.connect(lambda x=False, action=function: action())
+            layout.addWidget(button)
+
+        return layout
 
     def __getitem__(self, name):
         return self.pieces[name]

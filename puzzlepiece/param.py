@@ -49,6 +49,7 @@ class BaseParam(QtWidgets.QWidget):
     
     def _make_set_button(self):
         self._set_button = QtWidgets.QToolButton()
+        # Icon list: https://www.pythonguis.com/faq/built-in-qicons-pyqt/
         icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton)
         self._set_button.setIcon(icon)
         # Using a lambda as the clicked signal always passes False as the first argument
