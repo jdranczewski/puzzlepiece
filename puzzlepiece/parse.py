@@ -4,13 +4,12 @@ from pyqtgraph.Qt import QtWidgets
 
 def parse_params(text, puzzle):
     """
-    Parse a string of the following format to construct references to :class:`~puzzlepiece.param.AbstractParam` and
-    :class:`~puzzlepiece.readout.Readout`: objects:
-    ``[Piece name]:[param/readout name], [Piece name]:[param/readout name], ...``
+    Parse a string of the following format to construct references to :class:`~puzzlepiece.param.BaseParam` objects:
+    ``[Piece name]:[param name], [Piece name]:[param name], ...``
 
     :param text: The string to parse.
     :param puzzle: The app's :class:`~puzzlepiece.puzzle.Puzzle`.
-    :rtype: list(puzzlepiece.param.AbstractParam, puzzlepiece.readout.Readout)
+    :rtype: list(puzzlepiece.param.BaseParam, )
     """
     args = text.split(", ")
     result = []
@@ -26,17 +25,17 @@ def run(text, puzzle):
     """
     Execute a set of puzzlepiece script commands.
     
-    Commands can be separated by new lines, or ``; `` (semicolon + space).
+    Commands can be separated by new lines, or a semicolon + space.
 
     If a command needs to _include_ a semicolon followed by a space,
-    it can be inserted as ``\;`` (backslash character + semicolon).
+    it can be inserted as ``\;`` (backslash character + semicolon + space).
     
     Comments can be added by starting the line with ``#``.
 
     The available commands are:
         - ``set:[Piece name]:[param name]:[value]``
         - ``run:[Piece name]:[action name]``
-        - ``get:[Piece name]:[readout name]``
+        - ``get:[Piece name]:[param name]``
         - ``sleep:[duration in s]``
         - ``prompt:[text]``
         - ``print:[text]``
@@ -83,11 +82,13 @@ def run(text, puzzle):
 
 def format(text, puzzle):
     """
-    Insert values of :class:`~puzzlepiece.param.AbstractParam` and :class:`~puzzlepiece.readout.Readout`: objects
+    Insert values of :class:`~puzzlepiece.param.BaseParam` objects
     into a string.
 
     To insert a value, use the following format:
-    ``The value is: {[Piece name]:[param/readout name]}``
+    ``The value is: {[Piece name]:[param name]}``
+
+    If a param has a getter, it will be called.
 
     One can also apply additional formatting:
     ``The formatted value is {[Piece name]:[param/readout name];[format]}``
