@@ -154,7 +154,7 @@ class Puzzle(QtWidgets.QWidget):
         dialog = QtWidgets.QDialog(self)
         layout = QtWidgets.QVBoxLayout()
         tree = QtWidgets.QTreeWidget()
-        tree.setHeaderLabels(('pieces',))
+        tree.setHeaderLabels(('pieces', 'get?', 'set?'))
 
         def copy_item(item):
             if hasattr(item, 'puzzlepiece_descriptor'):
@@ -163,13 +163,30 @@ class Puzzle(QtWidgets.QWidget):
 
         for piece_name in self.pieces:
             piece_item = QtWidgets.QTreeWidgetItem(tree, (piece_name,))
-            for attr in ('params', 'actions'):
-                keys = getattr(self.pieces[piece_name], attr)
-                tree_item = QtWidgets.QTreeWidgetItem(piece_item, (attr,))
-                for item in keys:
-                    _ = QtWidgets.QTreeWidgetItem(tree_item, (item, ))
-                    _.puzzlepiece_descriptor = "{}:{}".format(piece_name, item)
 
+            # First, params
+            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ('params',))
+            for param_name in self.pieces[piece_name].params:
+                param = self.pieces[piece_name].params[param_name]
+                G = '⟳' if param._getter is not None else ''
+                S = '✓' if param._setter is not None else ''
+                param_item = QtWidgets.QTreeWidgetItem(tree_item, (param_name, G, S))
+                param_item.puzzlepiece_descriptor = "{}:{}".format(piece_name, param_name)
+
+            # Then, actions
+            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ('actions',))
+            for action_name in self.pieces[piece_name].actions:
+                action = self.pieces[piece_name].actions[action_name]
+                action_item = QtWidgets.QTreeWidgetItem(tree_item, (action_name, ))
+                action_item.puzzlepiece_descriptor = "{}:{}".format(piece_name, action_name)
+                button = QtWidgets.QToolButton()
+                icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_MediaPlay)
+                button.setIcon(icon)
+                button.clicked.connect(lambda x=False, action=action: action())
+                tree.setItemWidget(action_item, 1, button)
+
+        for i in range(0, 3):
+            tree.header().setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(tree)
         dialog.setLayout(layout)
         dialog.show()
