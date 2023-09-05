@@ -1,23 +1,10 @@
-puzzlepiece package
-===================
+puzzlepiece module
+==================
 
-Submodules
-----------
+The main module contains convenience references to the :class:`puzzlepiece.puzzle.Puzzle` and :class:`puzzlepiece.piece.Piece` objects,
+so they can be directly referenced as `puzzlepiece.Puzzle` and `puzzlepiece.Piece`.
 
-.. toctree::
-   :maxdepth: 2
-
-   puzzlepiece.action
-   puzzlepiece.param
-   puzzlepiece.parse
-   puzzlepiece.piece
-   puzzlepiece.puzzle
-   puzzlepiece.readout
-
-Module contents
----------------
-
-.. automodule:: puzzlepiece
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Importing it also gives direct access to:
+  * :mod:`puzzlepiece.param`
+  * :mod:`puzzlepiece.action`
+  * :mod:`puzzlepiece.parse`

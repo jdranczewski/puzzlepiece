@@ -19,10 +19,10 @@ class Piece(QtWidgets.QGroupBox):
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
-        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.AbstractParam`)
+        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.BaseParam`)
         self.params = {}
-        #: dict: A dictionary of this Piece's readouts (see :class:`~puzzlepiece.readout.Readout`)
-        self.readouts = {}
+        # A reference to the param dictionary for backwards-compatibility
+        self.readouts = self.params
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
         self.shortcuts = {}
@@ -39,7 +39,6 @@ class Piece(QtWidgets.QGroupBox):
 
         control_layout = QtWidgets.QVBoxLayout()
         control_layout.addLayout(self.param_layout())
-        control_layout.addLayout(self.readout_layout())
         control_layout.addLayout(self.action_layout())
         self.layout.addLayout(control_layout)
 
@@ -67,18 +66,6 @@ class Piece(QtWidgets.QGroupBox):
             layout.addWidget(self.params[key], i%numrows, i//numrows)
         return layout
 
-    def readout_layout(self):
-        """
-        Genereates a `QVBoxLayout` for the readouts.
-
-        :rtype: QtWidgets.QVBoxLayout
-        """
-        layout = QtWidgets.QVBoxLayout()
-        for key in self.readouts:
-            if self.readouts[key].visible:
-                layout.addWidget(self.readouts[key])
-        return layout
-
     def action_layout(self, wrap=2):
         """
         Genereates a `QGridLayout` for the actions. Override to set a different wrapping.
@@ -104,19 +91,21 @@ class Piece(QtWidgets.QGroupBox):
 
     def define_params(self):
         """
-        Override to define params.
+        Override to define params using decorators from :mod:`puzzlepiece.param`.
         """
         pass
 
     def define_readouts(self):
         """
-        Override to define readouts.
+        Override to define readouts (params with getters). This is no different that defining them in
+        :func:`~puzzlepiece.piece.Piece.define_params`, but may be a convenient way to organise the
+        definitions within your custom class.
         """
         pass
 
     def define_actions(self):
         """
-        Override to define actions.
+        Override to define actions using decorators from :mod:`puzzlepiece.action`.
         """
         pass
 
