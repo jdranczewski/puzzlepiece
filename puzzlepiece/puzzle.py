@@ -52,7 +52,7 @@ class Puzzle(QtWidgets.QWidget):
         self.app = app
         self.setWindowTitle(name)
         self._pieces = PieceDict()
-        # toplevel is used to keep send keypresses down the QWidget tree,
+        # toplevel is used to send keypresses down the QWidget tree,
         # instead of up (which is how they normally propagate).
         # The list stores all the direct children of this QWidget
         self._toplevel = []
@@ -71,7 +71,7 @@ class Puzzle(QtWidgets.QWidget):
     def pieces(self):
         """
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
-        :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from other Pieces.
+        :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
         """
         return self._pieces
     
@@ -101,7 +101,7 @@ class Puzzle(QtWidgets.QWidget):
     
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
-        Adds a :class:`~puzzlepiece.puzzle.Folder` to the grid layout, and returns it.
+        Adds a tabbed :class:`~puzzlepiece.puzzle.Folder` to the grid layout, and returns it.
 
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
@@ -130,7 +130,7 @@ class Puzzle(QtWidgets.QWidget):
     def process_events(self):
         """
         Forces the QApplication to process events that happened while a callback was executing.
-        Can for example update plots while a long process is running, or check run any keyboard
+        Can for example update plots while a long process is running, or run any keyboard
         shortcuts pressed while proecessing.
         """
         self.app.processEvents()
@@ -155,7 +155,6 @@ class Puzzle(QtWidgets.QWidget):
     # Convenience methods
     
     def _docs(self):
-        #TODO: add values to readouts and params, maybe buttons for actions?
         dialog = QtWidgets.QDialog(self)
         layout = QtWidgets.QVBoxLayout()
         tree = QtWidgets.QTreeWidget()
@@ -275,6 +274,9 @@ class Puzzle(QtWidgets.QWidget):
         return self.pieces.keys()
     
     def run(self, text):
+        """
+        Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
+        """
         parse.run(text, self)
 
     # Qt overrides

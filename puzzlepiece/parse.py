@@ -25,9 +25,9 @@ def run(text, puzzle):
     """
     Execute a set of puzzlepiece script commands.
     
-    Commands can be separated by new lines, or a semicolon + space.
+    Commands can be separated by new lines, or a semicolon (``;``) + space.
 
-    If a command needs to _include_ a semicolon followed by a space,
+    If a command needs to *include* a semicolon followed by a space,
     it can be inserted as ``\;`` (backslash character + semicolon + space).
     
     Comments can be added by starting the line with ``#``.
@@ -105,7 +105,10 @@ def format(text, puzzle):
         elements = m[1:-1].split(";")
         param = parse_params(elements[0], puzzle)[0]
         if len(elements) == 1:
-            result = str(param.get_value())
+            if param._format is not None:
+                result = param._format.format(param.get_value())
+            else:
+                result = str(param.get_value())
         elif len(elements) == 2:
             result = ('{'+elements[1]+'}').format(param.get_value())
         text = text.replace(m, result)

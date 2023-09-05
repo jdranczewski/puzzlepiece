@@ -19,9 +19,9 @@ class Piece(QtWidgets.QGroupBox):
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
-        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.AbstractParam`)
+        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.BaseParam`)
         self.params = {}
-        #: dict: A reference to the param dictionary for backwards-compatibility
+        # A reference to the param dictionary for backwards-compatibility
         self.readouts = self.params
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
@@ -91,19 +91,21 @@ class Piece(QtWidgets.QGroupBox):
 
     def define_params(self):
         """
-        Override to define params.
+        Override to define params using decorators from :mod:`puzzlepiece.param`.
         """
         pass
 
     def define_readouts(self):
         """
-        Override to define readouts.
+        Override to define readouts (params with getters). This is no different that defining them in
+        :func:`~puzzlepiece.piece.Piece.define_params`, but may be a convenient way to organise the
+        definitions within your custom class.
         """
         pass
 
     def define_actions(self):
         """
-        Override to define actions.
+        Override to define actions using decorators from :mod:`puzzlepiece.action`.
         """
         pass
 
