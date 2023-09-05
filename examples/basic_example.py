@@ -10,7 +10,7 @@ def main():
     window = pzp.Puzzle(app, "Basic example", debug=True)
 
     # Add Pieces
-    window.add_piece("random_number", random_number.Piece(window), 0, 0)
+    window.add_piece("random", random_number.Piece(window), 0, 0)
     folder = window.add_folder(0, 1)
     folder.add_piece("plotter", plotter.Piece(window))
     folder.add_piece("scan_value", scan_value.Piece(window))
@@ -18,9 +18,9 @@ def main():
 
     # Run a setup script
     window.run("""
-set:plotter:param:random_number:Random number
-set:scan_value:params:random_number:max
-set:scan_value:obtain:random_number:Random number
+set:plotter:param:random:number
+set:scan_value:params:random:max
+set:scan_value:obtain:random:number
 set:scan_value:end:100
 set:scan_value:finish:10
 """)

@@ -4,13 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "puzzlepiece"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
   { name="Jakub Dranczewski", email="jakub.dranczewski@gmail.com" },
 ]
 description = "A GUI-forward Python framework for automating experimental setups."
 readme = "README.md"
 requires-python = ">=3.7"
+dependencies = [
+  "numpy",
+  "pyqtgraph"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
@@ -20,4 +24,5 @@ classifiers = [
 
 [project.urls]
 "Homepage" = "https://github.com/jdranczewski/puzzlepiece"
+"Documentation" = "https://puzzlepiece.readthedocs.io"
 "Bug Tracker" = "https://github.com/jdranczewski/puzzlepiece/issues"

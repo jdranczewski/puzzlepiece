@@ -13,7 +13,7 @@ class Piece(pzp.Piece):
             random.seed(value)
         
         # Some params have a 'getter' function, which returns a value, like a powermeter's reading
-        @pzp.param.readout(self, "Random number")
+        @pzp.param.readout(self, "number")
         def random_number(self):
             return random.randint(self.params['min'].get_value(),
                                   self.params['max'].get_value())
@@ -23,5 +23,5 @@ class Piece(pzp.Piece):
         # Sometimes an action is needed, like homing a moving stage
         @pzp.action.define(self, "Dialog")
         def print_something(self):
-            pzp.parse.run('prompt:In a range between {random_number:min} and {random_number:max}, your number is {random_number:Random number}',
+            pzp.parse.run('prompt:In a range between {random:min} and {random:max}, your number is {random:number}',
                           self.puzzle)
