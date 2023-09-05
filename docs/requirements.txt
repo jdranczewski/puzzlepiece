@@ -1,4 +1,4 @@
-PySide6
+PyQt6
 pyqtgraph
 numpy
 sphinx==7.2.5
