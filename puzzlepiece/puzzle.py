@@ -52,6 +52,7 @@ class Puzzle(QtWidgets.QWidget):
         self.app = app
         self.setWindowTitle(name)
         self._pieces = PieceDict()
+        self._globals = {}
         # toplevel is used to send keypresses down the QWidget tree,
         # instead of up (which is how they normally propagate).
         # The list stores all the direct children of this QWidget
@@ -75,6 +76,13 @@ class Puzzle(QtWidgets.QWidget):
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
         """
         return self._pieces
+    
+    @property
+    def globals(self):
+        """
+        A dictionary, can be used for API modules that need to be shared by multiple Pieces.
+        """
+        return self._globals
     
     @property
     def debug(self):
@@ -294,6 +302,38 @@ class Puzzle(QtWidgets.QWidget):
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
         """
         parse.run(text, self)
+
+    def get_values(self, text):
+        """
+        Get the values from multiple params as a list.
+
+        :param text: A string of comma-separated param strings
+          as described in :func:`puzzlepiece.parse.parse_params`.
+        :rtype: list
+        """
+        return [param.get_value() for param in parse.parse_params(text, self)]
+    
+    def record_values(self, text, dictionary=None):
+        """
+        Get the values from multiple params and record them in a dictionary.
+        Useful for storing metadata about a measurement.
+
+        :param text: A string of comma-separated param strings
+          as described in :func:`puzzlepiece.parse.parse_params`.
+        :param dictionary: If provided, this function will write the param names
+          and values to this dictionary. Otherwise, a new one is created and returned.
+        :rtype: dict
+        """
+        params = parse.parse_params(text, self)
+        names = text.split(', ')
+
+        if dictionary is None:
+            dictionary = {}
+
+        for name, param in zip(names, params):
+            dictionary[name] = param.get_value()
+
+        return dictionary
 
     # Qt overrides
         
