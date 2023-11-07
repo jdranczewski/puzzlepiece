@@ -8,3 +8,4 @@ Importing it also gives direct access to:
   * :mod:`puzzlepiece.param`
   * :mod:`puzzlepiece.action`
   * :mod:`puzzlepiece.parse`
+  * :mod:`puzzlepiece.threads`

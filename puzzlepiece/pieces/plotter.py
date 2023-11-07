@@ -4,23 +4,6 @@ import pyqtgraph as pg
 import time
 import numpy as np
 
-class Worker(QtCore.QObject):
-    finished = QtCore.Signal()
-    update = QtCore.Signal(float)
-
-    def __init__(self, param, sleep):
-        self.param = param
-        self.sleep = sleep
-        self.running = True
-        super().__init__()
-
-    def run(self):
-        while self.running:
-            value = float(self.param.get_value())
-            self.update.emit(value)
-            time.sleep(self.sleep.get_value())
-        self.finished.emit()
-
 
 class Piece(pzp.Piece):
     def __init__(self, puzzle):
@@ -32,43 +15,17 @@ class Piece(pzp.Piece):
     def define_params(self):
         pzp.param.text(self, "param", "plotter:max")(None)
         pzp.param.spinbox(self, "max", 100)(None)
-        pzp.param.spinbox(self, "sleep", 0.1)(None)
+
+        @pzp.param.spinbox(self, "sleep", 0.1)
+        def set_sleep(self, value):
+            self.timer.sleep = value
 
     def define_actions(self):
-        @pzp.action.define(self, "Start")
-        def start(self):
-            if not self.running:
-                sleep = self.params['sleep']
-                # if hasattr(self, '_thread') and not self._thread.isFinished():
-                #     stop()
-                
-                param = pzp.parse.parse_params(self.params['param'].get_value(), self.puzzle)[0]
-
-                self._thread = QtCore.QThread()
-                self.worker = Worker(param, sleep)
-                self.worker.moveToThread(self._thread)
-
-                self._thread.started.connect(self.worker.run)
-                self.worker.finished.connect(self._thread.quit)
-                self.worker.finished.connect(self.worker.deleteLater)
-                self._thread.finished.connect(self._thread.deleteLater)
-                self.worker.update.connect(self.add_point)
-
-                self._thread.start()
-                self.running = True
-
-        @pzp.action.define(self, "Stop")
-        def stop(self):
-            if self.running:
-                self.worker.running = False
-                self.running = False
-            # self._thread.wait()
-
         @pzp.action.define(self, "Clear")
         def clear(self):
             self.times = []
             self.data = []
-
+    
     def add_point(self, value):
         self.data.append(value)
         self.times.append(time.time())
@@ -83,8 +40,29 @@ class Piece(pzp.Piece):
                 td /= 60
             self.plot_line.setData(td, self.data)
 
+    def get_value(self):
+        # We would generally prefer the threaded function to touch Widgets and GUI stuff as
+        # little as possible! If it tries to modify something, and then the user presses
+        # a button in the meantime, that's usually  b a d.
+
+        # So instead we get the value in the thread (this is the time intensive part)
+        # and pass it back to the main thread through a Signal. The plotting then
+        # happens in the main thread and all is likely well.
+
+        param = pzp.parse.parse_params(self.params['param'].get_value(), self.puzzle)[0]
+        self.new_value_available.emit(param.get_value())
+
+    new_value_available = QtCore.Signal(float)
     def custom_layout(self):
         layout = QtWidgets.QVBoxLayout()
+
+        # The thread runs self.get_value repeatedly, which then runs self.add_point in the main thread
+        # through a Signal
+        self.timer = pzp.threads.PuzzleTimer('Live', self.puzzle, self.get_value, self.params['sleep'].get_value())
+        self.new_value_available.connect(self.add_point)
+
+        layout.addWidget(self.timer)
+        self.params['sleep'].set_value() # Set the sleep value to the default one
 
         self.pw = pg.PlotWidget()
         layout.addWidget(self.pw)
@@ -94,4 +72,4 @@ class Piece(pzp.Piece):
         return layout
     
     def call_stop(self):
-        self.actions['Stop']()
+        self.timer.stop()

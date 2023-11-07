@@ -56,6 +56,7 @@ class Puzzle(QtWidgets.QWidget):
         # instead of up (which is how they normally propagate).
         # The list stores all the direct children of this QWidget
         self._toplevel = []
+        self._threadpool = QtCore.QThreadPool()
 
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
@@ -135,14 +136,29 @@ class Puzzle(QtWidgets.QWidget):
         """
         self.app.processEvents()
 
+    _shutdown_threads = QtCore.Signal()
+    def run_worker(self, worker):
+        """
+        Add a Worker to the Puzzle's Threadpool and runs it. See :class:`puzzlepiece.threads`
+        for more details on how to set up a Worker.
+        """
+        if hasattr(worker, 'stop'):
+            # This signal is emitted when the application is shutting down,
+            # so we're telling the LiveWorker to stop
+            self._shutdown_threads.connect(worker.stop)
+        self._threadpool.start(worker)
+
     def _excepthook(self, exctype, value, traceback):
         sys.__excepthook__(exctype, value, traceback)
 
-        self.custom_excepthook(exctype, value, traceback)
+        # Only do custom exception handling in the main thread, otherwise the messagebox
+        # or other such things are likely to break things.
+        if QtCore.QThread.currentThread() == self.app.thread():
+            self.custom_excepthook(exctype, value, traceback)
 
-        box = QtWidgets.QMessageBox()
-        box.setText(str(value)+"\n\nCheck console for details.")
-        box.exec()
+            box = QtWidgets.QMessageBox()
+            box.setText(str(value)+"\n\nCheck console for details.")
+            box.exec()
 
     def custom_excepthook(self, exctype, value, traceback):
         """
@@ -304,6 +320,8 @@ class Puzzle(QtWidgets.QWidget):
 
         :meta private:
         """
+        self._shutdown_threads.emit()
+        
         for piece_name in self.pieces:
             self.pieces[piece_name].handle_close(event)
         super().closeEvent(event)

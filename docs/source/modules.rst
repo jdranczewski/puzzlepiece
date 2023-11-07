@@ -10,3 +10,4 @@ API
    puzzlepiece.param
    puzzlepiece.action
    puzzlepiece.parse
+   puzzlepiece.threads
