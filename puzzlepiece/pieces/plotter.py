@@ -41,25 +41,18 @@ class Piece(pzp.Piece):
             self.plot_line.setData(td, self.data)
 
     def get_value(self):
-        # We would generally prefer the threaded function to touch Widgets and GUI stuff as
-        # little as possible! If it tries to modify something, and then the user presses
-        # a button in the meantime, that's usually  b a d.
-
-        # So instead we get the value in the thread (this is the time intensive part)
-        # and pass it back to the main thread through a Signal. The plotting then
-        # happens in the main thread and all is likely well.
-
+        # The task that happens in the side-thread should be simple and not touch the Widgets or
+        # the main thread too much - it can take a while though, like a lengthy data acquisition
         param = pzp.parse.parse_params(self.params['param'].get_value(), self.puzzle)[0]
-        self.new_value_available.emit(param.get_value())
+        return param.get_value()
 
-    new_value_available = QtCore.Signal(float)
     def custom_layout(self):
         layout = QtWidgets.QVBoxLayout()
 
-        # The thread runs self.get_value repeatedly, which then runs self.add_point in the main thread
-        # through a Signal
+        # The thread runs self.get_value repeatedly, which returns a value...
         self.timer = pzp.threads.PuzzleTimer('Live', self.puzzle, self.get_value, self.params['sleep'].get_value())
-        self.new_value_available.connect(self.add_point)
+        # ... this value is then passed to self.add_point through a Signal
+        self.timer.returned.connect(self.add_point)
 
         layout.addWidget(self.timer)
         self.params['sleep'].set_value() # Set the sleep value to the default one

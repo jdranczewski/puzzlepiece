@@ -1,6 +1,11 @@
 from qtpy import QtCore, QtWidgets
 import time
 
+class _Emitter(QtCore.QObject):
+    # The Emitter is needed as a QRunnable is not a QObject, and cannot emit it's own signals.
+    # So we set up the Signal here, and let a Worker instance an Emitter for its use
+    signal = QtCore.Signal(object)
+
 class Worker(QtCore.QRunnable):
     """
     Generic worker (QRunnable) that calls a function in a thread.
@@ -14,6 +19,9 @@ class Worker(QtCore.QRunnable):
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
         self.done = False
+        self._emitter = _Emitter()
+        #: A Qt signal emitted when the function returns, passes the returned value to the connected Slot.
+        self.returned = self._emitter.signal
         super().__init__()
 
     @QtCore.Slot()
@@ -23,7 +31,8 @@ class Worker(QtCore.QRunnable):
         use :func:`puzzlepiece.puzzle.Puzzle.run_worker`.
         """
         try:
-            self.function(*self.args, **self.kwargs)
+            r = self.function(*self.args, **self.kwargs)
+            self.returned.emit(r)
         finally:
             self.done=True
 
@@ -42,6 +51,8 @@ class LiveWorker(Worker):
         self.stopping = False
         self.sleep = sleep
         super().__init__(function, args, kwargs)
+        #: A Qt signal emitted each time the function returns, passes the returned value to the connected Slot.
+        self.returned = self.returned
 
     def stop(self):
         """
@@ -58,7 +69,8 @@ class LiveWorker(Worker):
         """
         try:
             while not self.stopping:
-                self.function(*self.args, **self.kwargs)
+                r = self.function(*self.args, **self.kwargs)
+                self.returned.emit(r)
                 if not self.stopping:
                     time.sleep(self.sleep)
         finally:
@@ -78,6 +90,8 @@ class PuzzleTimer(QtWidgets.QWidget):
     :param args: list of arguments to be forwarded to the function when run.
     :param kwargs: dictionary of keyword arguments to be forwarded to the function when run.
     """
+    #: A Qt signal emitted each time the associated LiveWorker returns, passes the returned value to the connected Slot.
+    returned = QtCore.Signal(object)
     def __init__(self, name, puzzle, function, sleep=.1, args=None, kwargs=None):
         self.name = name
         self.puzzle = puzzle
@@ -100,9 +114,13 @@ class PuzzleTimer(QtWidgets.QWidget):
     def _state_handler(self, state):
         if state and (self.worker is None or self.worker.done):
             self.worker = LiveWorker(self.function, self._sleep, self.args, self.kwargs)
+            self.worker.returned.connect(self._return_handler)
             self.puzzle.run_worker(self.worker)
         elif self.worker is not None:
             self.worker.stop()
+
+    def _return_handler(self, value):
+        self.returned.emit(value)
 
     def stop(self):
         """
