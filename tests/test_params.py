@@ -177,18 +177,18 @@ def test_getter_param(qtbot, qapp):
     assert puzzle['test'].params['getter_param'].value == 1
     assert puzzle['test'].params['getter_param'].input.text() == '1'
 
-    # This should not in general emit the signal - there's no setter, so any changes
-    # to the input field would trigger the signal by themselves. If we call set_value
-    # with no arguments it will have no impact on the current value
+    # Updated design: set_value in general emits the signal,
+    # even if the input field is unchanged
     puzzle['test'].params['getter_param'].set_value()
-    assert count[0] == 2
+    assert count[0] == 3
     assert puzzle['test'].params['getter_param'].value == 1
     assert puzzle['test'].params['getter_param'].input.text() == '1'
 
-    # In contrast, changing the value of the input should in principle emit the signal
+    # In contrast, changing the value of the input with the hidden function _input_set_value
+    # should in general not emit the signal
     puzzle['test'].params['getter_param']._input_set_value(2)
     assert count[0] == 3
-    assert puzzle['test'].params['getter_param'].value == 2
+    assert puzzle['test'].params['getter_param'].value == 1
     assert puzzle['test'].params['getter_param'].input.text() == '2'
 
     puzzle['test'].params['getter_param'].set_value(3)

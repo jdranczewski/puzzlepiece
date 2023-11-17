@@ -95,9 +95,8 @@ class BaseParam(QtWidgets.QWidget):
             # Highlight the input box if a setter is set
             self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
         else:
-            # If there's no setter, we write the value directly to the internal _value variable
-            self._value = self._input_get_value()
-            self.changed.emit()
+            # If there's no setter, we call set_value to set the value from input
+            self.set_value()
     
     def set_value(self, value=None):
         """
@@ -131,10 +130,10 @@ class BaseParam(QtWidgets.QWidget):
             # Update the input as well, clearing the highlight
             self._input_set_value(new_value)
             self.input.setStyleSheet("")
-            # Emit the changes signal (_value_change_handler doesn't emit if there's a setter)
-            self.changed.emit()
-        # If a setter doesn't exist, _value_change_handler handles updating the internal _value
-        # and emits the changed signal, so no further action needed
+        else:
+            self._value = value
+
+        self.changed.emit()
 
     def get_value(self):
         """
@@ -147,13 +146,12 @@ class BaseParam(QtWidgets.QWidget):
         if self._getter is not None:
             new_value = self._getter()
             new_value = self._type(new_value)
+            self._value = new_value
 
             # Set the value to the input and emit signal if needed
             self._input_set_value(new_value)
             self.input.setStyleSheet("")
-            if self._setter is not None:
-                # _value_change_handler doesn't emit the signal if there's a setter
-                self.changed.emit()
+            self.changed.emit()
 
             return new_value
         else:
@@ -194,7 +192,6 @@ class BaseParam(QtWidgets.QWidget):
         input = QtWidgets.QLabel()
         if value is not None:
             input.setText(self._format.format(value))
-        self.__label_input_connection = connect
         return input, True
     
     def _input_set_value(self, value):
@@ -205,7 +202,6 @@ class BaseParam(QtWidgets.QWidget):
         :meta public:
         """
         self.input.setText(self._format.format(value))
-        self.__label_input_connection()
     
     def _input_get_value(self):
         """
@@ -264,7 +260,9 @@ class ParamInt(BaseParam):
 
     def _input_set_value(self, value):
         """:meta private:"""
+        self.input.blockSignals(True)
         self.input.setValue(value)
+        self.input.blockSignals(False)
 
     def _input_get_value(self):
         """:meta private:"""
@@ -309,7 +307,9 @@ class ParamText(BaseParam):
 
     def _input_set_value(self, value):
         """:meta private:"""
+        self.input.blockSignals(True)
         self.input.setText(value)
+        self.input.blockSignals(False)
 
     def _input_get_value(self):
         """:meta private:"""
@@ -344,8 +344,8 @@ class ParamCheckbox(BaseParam):
     def _input_set_value(self, value):
         """:meta private:"""
         self.input.setChecked(bool(value))
-        if self._connected_click_handler is not None:
-            self._connected_click_handler()
+        # if self._connected_click_handler is not None:
+        #     self._connected_click_handler()
 
     def _input_get_value(self):
         """:meta private:"""
