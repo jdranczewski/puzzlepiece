@@ -51,6 +51,10 @@ class TParamPiece(pzp.Piece):
         def error_param(self, value):
             raise Exception('Setter exception')
         
+        pzp.param.base_param(self, 'float_param', 0.)(None)
+        pzp.param.base_param(self, 'format_param', 0., format='{:.2f}')(None)
+        pzp.param.spinbox(self, 'input_param', 0.)(None)
+        
 
 def test_base_param(qtbot, qapp):
     puzzle = pzp.Puzzle(qapp, "Test params")
@@ -200,6 +204,31 @@ def test_getter_param(qtbot, qapp):
     assert count[0] == 5
     assert puzzle['test'].params['getter_param'].value == 1
     assert puzzle['test'].params['getter_param'].input.text() == '1'
+
+def test_precision_param(qtbot, qapp):
+    puzzle = pzp.Puzzle(qapp, "Test params")
+    puzzle.add_piece("test", TParamPiece(puzzle), 0, 0)
+    puzzle.show()
+
+    # The base_param has an int format, so it should cast values given to int
+    puzzle['test'].params['base_param'].set_value(0.1234)
+    assert puzzle['test'].params['base_param'].value == 0
+    assert puzzle['test'].params['base_param'].get_value() == 0
+
+    # The float_param has a float format, so it should retain precision
+    puzzle['test'].params['float_param'].set_value(0.1234)
+    assert puzzle['test'].params['float_param'].value == 0.1234
+    assert puzzle['test'].params['float_param'].get_value() == 0.1234
+
+    # how about one with a format that has fewer decimal points?
+    puzzle['test'].params['format_param'].set_value(0.1234)
+    assert puzzle['test'].params['format_param'].value == 0.1234
+    assert puzzle['test'].params['format_param'].get_value() == 0.1234
+
+    # how about one with an input?
+    puzzle['test'].params['input_param'].set_value(0.1234)
+    assert puzzle['test'].params['input_param'].value == 0.1234
+    assert puzzle['test'].params['input_param'].get_value() == 0.1234
 
 
 if __name__ == "__main__":
