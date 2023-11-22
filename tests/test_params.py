@@ -54,6 +54,7 @@ class TParamPiece(pzp.Piece):
         pzp.param.base_param(self, 'float_param', 0.)(None)
         pzp.param.base_param(self, 'format_param', 0., format='{:.2f}')(None)
         pzp.param.spinbox(self, 'input_param', 0.)(None)
+        pzp.param.text(self, 'text_param', "")(None)
         
 
 def test_base_param(qtbot, qapp):
@@ -229,6 +230,39 @@ def test_precision_param(qtbot, qapp):
     puzzle['test'].params['input_param'].set_value(0.1234)
     assert puzzle['test'].params['input_param'].value == 0.1234
     assert puzzle['test'].params['input_param'].get_value() == 0.1234
+
+def test_text_param(qtbot, qapp):
+    puzzle = pzp.Puzzle(qapp, "Test params")
+    puzzle.add_piece("test", TParamPiece(puzzle), 0, 0)
+    puzzle.show()
+
+    count = [0]
+    def count_calls(count=count):
+        count[0] += 1
+    puzzle['test'].params['text_param'].changed.connect(count_calls)
+
+    assert count[0] == 0
+
+    # The internal method _input_set_value should not result in the Signal being emitted
+    # or the internal value changing
+    puzzle['test'].params['text_param']._input_set_value('A')
+    assert count[0] == 0
+    assert puzzle['test'].params['text_param'].value == ""
+    assert puzzle['test'].params['text_param'].get_value() == ""
+
+    # In contrast, changing the text field directly (like the user typing)
+    # should change the internal value and emit the Signal
+    puzzle['test'].params['text_param'].input.setText('B')
+    assert count[0] == 1
+    assert puzzle['test'].params['text_param'].value == "B"
+    assert puzzle['test'].params['text_param'].get_value() == "B"
+
+    # same for changing through the set_value method, which should also update the text field
+    puzzle['test'].params['text_param'].set_value('C')
+    assert count[0] == 2
+    assert puzzle['test'].params['text_param'].value == "C"
+    assert puzzle['test'].params['text_param'].get_value() == "C"
+    assert puzzle['test'].params['text_param']._input_get_value() == "C"
 
 
 if __name__ == "__main__":
