@@ -33,6 +33,52 @@ class PieceDict:
     def __repr__(self):
         return "PieceDict({})".format(", ".join(self._dict.keys()))
 
+
+class Globals:
+    def __init__(self):
+        self._dict = {}
+        self._counts = {}
+
+    def require(self, name):
+        if name not in self._dict:
+            self._dict[name] = None
+            self._counts[name] = 1
+            return False
+        else:
+            self._counts[name] += 1
+            return True
+        
+    def release(self, name):
+        if name not in self._dict:
+            raise KeyError(f"No global variable with id '{name}' to release")
+        if name not in self._counts:
+            raise KeyError(f"Cannot release '{name}' since it hasn't been registered with 'require'")
+        self._counts[name] -= 1
+        return self._counts[name] < 1
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+    
+    def __getitem__(self, key):
+        if key not in self._dict:
+            raise KeyError("No global variable with id '{}'".format(key))
+        return self._dict[key]
+    
+    def __delitem__(self, key):
+        del self._dict[key]
+        if key in self._counts:
+            del self._counts[key]
+    
+    def __contains__(self, item):
+        return item in self._dict
+    
+    def keys(self):
+        return self._dict.keys()
+    
+    def __repr__(self):
+        return "Globals({})".format(", ".join(self._dict.keys()))
+
+
 class Puzzle(QtWidgets.QWidget):
     """
     A container for :class:`puzzlepiece.piece.Piece` objects, meant to be the main QWidget (window)
@@ -52,7 +98,7 @@ class Puzzle(QtWidgets.QWidget):
         self.app = app
         self.setWindowTitle(name)
         self._pieces = PieceDict()
-        self._globals = {}
+        self._globals = Globals()
         # toplevel is used to send keypresses down the QWidget tree,
         # instead of up (which is how they normally propagate).
         # The list stores all the direct children of this QWidget
