@@ -1,5 +1,6 @@
 from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
+import numpy as np
 
 class BaseParam(QtWidgets.QWidget):
     """
@@ -129,10 +130,10 @@ class BaseParam(QtWidgets.QWidget):
             self._value = new_value
             # Update the input as well, clearing the highlight
             self._input_set_value(new_value)
-            self.input.setStyleSheet("")
         else:
             self._value = value
 
+        self.input.setStyleSheet("")
         self.changed.emit()
 
     def get_value(self):
@@ -156,6 +157,19 @@ class BaseParam(QtWidgets.QWidget):
             return new_value
         else:
             return self._value
+        
+    def set_setter(self, piece):
+        """
+        Create a decorator to register a setter for this param. This would be used within
+        :func:`puzzlepiece.piece.Piece.define_params` as ``@param.set_setter(self)`` decorating
+        a function.
+        """
+        def decorator(setter):
+            wrapper = wrap_setter(piece, setter)
+            self._setter = wrapper
+            self._make_set_button()
+            return self
+        return decorator
         
     def set_getter(self, piece):
         """
@@ -213,6 +227,16 @@ class BaseParam(QtWidgets.QWidget):
         :meta public:
         """
         return self._type(self.input.text())
+    
+    @property
+    def type(self):
+        """
+        The fixed type of this param. The values set with
+        :func:`puzzlepiece.param.BaseParam.set_value` will be cast to this type,
+        and those returned by :func:`puzzlepiece.param.BaseParam.get_value`
+        will be of this type.
+        """
+        return self._type
     
     @property
     def visible(self):
@@ -360,7 +384,96 @@ class ParamCheckbox(BaseParam):
             # Flip back the checkbox if the click resulted in an error
             self.input.setChecked(not(self.input.isChecked()))
             raise e
+ 
 
+class ParamArray(BaseParam):
+    """
+    A param that stores a numpy array. There is no GUI input, the Param simply displays the
+    dimensions of the array, and indicates when the data has been updated.
+
+    The array can be modified programmatically by providing setters or getters, or using
+    :func:`~puzzlepiece.param.BaseParam.set_value`.
+    """
+    _type = np.asarray
+
+    def __init__(self, name, value, setter=None, getter=None, visible=True, format='{}', _type=None, *args, **kwargs):
+        self._indicator_state = True
+        super().__init__(name, value, setter, getter, visible, format, _type, *args, **kwargs)
+
+    def _make_input(self, value=None, connect=None):
+        """
+        :meta private:
+        """
+        input = QtWidgets.QLabel()
+        if value is not None:
+            input.setText(self._format_array(value))
+        return input, True
+
+    def _input_set_value(self, value):
+        """
+        :meta private:
+        """
+        self.input.setText(self._format_array(value)) 
+
+    def _format_array(self, value):
+        self._indicator_state = not self._indicator_state
+        return f"array{value.shape} {'◧' if self._indicator_state else '◨'}"
+
+
+class ParamDropdown(BaseParam):
+    """
+    A param storing a string that also provides a dropdown. The user can edit the text field directly,
+    and pressing enter will add the current value to the dropdown. A list of values can also be provided
+    when creating this param, and they will populate the dropdown as soon as the app starts.
+
+    The default param value provided here as `value` will either be selected from the dropdown if
+    in `values`, or inserted into the text field as if a user typed it if not in `values`.
+
+    :param values: List of default values available in the dropdown (can be None)
+    """
+    _type = str
+
+    def __init__(self, name, value, values, setter=None, getter=None, visible=True, *args, **kwargs):
+        if values is None:
+            self._values = []
+        else:
+            self._values = list(values)
+        super().__init__(name, value, setter, getter, visible, *args, **kwargs)
+    
+    def _make_input(self, value=None, connect=None):
+        """:meta private:"""
+        input = QtWidgets.QComboBox(editable=True)
+
+        # Add the possible values
+        input.addItems([str(x) for x in self._values])
+        
+        if value is not None:
+            value = str(value)
+            if index := input.findData(value) > -1:
+                input.setCurrentIndex(index)
+            else:
+                input.setCurrentText(value)
+
+        if connect is not None:
+            input.currentTextChanged.connect(connect)
+        
+        return input, True
+
+    def _input_set_value(self, value):
+        """:meta private:"""
+        value = str(value)
+        self.input.blockSignals(True)
+
+        if index := self.input.findData(value) > -1:
+            self.input.setCurrentIndex(index)
+        else:
+            self.input.setCurrentText(value)
+
+        self.input.blockSignals(False)
+
+    def _input_get_value(self):
+        """:meta private:"""
+        return self.input.currentText()
 
 def wrap_setter(piece, setter):
     """
@@ -411,6 +524,20 @@ def base_param(piece, name, value, visible=True, format='{}'):
     that a setter doesn't exist::
 
         puzzlepiece.param.base_param(self, 'param_name', 0)(None)
+
+    Some of the decorators here decorate getters, and some decorate setters, depending on what is the more sensible default
+    -- a :func:`~puzzlepiece.param.readout` decorates a getter, as it is meant to display obtained values, and a 
+    :func:`~puzzlepiece.param.spinbox` decorates a setter, as it's meant to be an easy way to input and set values. If you
+    need to also register the other function, use the :func:`puzzlepiece.param.BaseParam.set_getter`
+    and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
+
+        @puzzlepiece.param.base_param(self, 'position', 0)
+        def position(self, value):
+            self.sdk.set_position(value)
+        
+        @position.set_getter(self)
+        def position(self):
+            return self.sdk.get_position()
 
     :param piece: The :class:`~puzzle.piece.Piece` this param should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_params`
@@ -507,5 +634,68 @@ def checkbox(piece, name, value, visible=True):
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
         piece.params[name] = ParamCheckbox(name, value, wrapper, None, visible)
+        return piece.params[name]
+    return decorator
+
+def array(piece, name, visible=True):
+    """
+    A decorator generator for registering a :class:`~puzzlepiece.param.ParamArray`
+    in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **getter**.
+
+    This will display the shape of the stored array with no option to edit it and an indicator
+    showing when the value changes.
+
+    See :func:`~puzzlepiece.param.base_param` for more details.
+    """
+    def decorator(getter):
+        wrapper = wrap_getter(piece, getter)
+        piece.params[name] = ParamArray(name, None, setter=None, getter=wrapper, visible=visible)
+        return piece.params[name]
+    return decorator
+
+def dropdown(piece, name, value, visible=True):
+    """
+    A decorator generator for registering a :class:`~puzzlepiece.param.ParamDropdown`
+    in a Piece's :func:`~puzzlepiece.piece.Piece.define_params`.
+
+    It should decorate a function that returns a list of default values to populate the dropdown,
+    for example::
+
+        @puzzlepiece.param.dropdown(self, 'param_name', '')
+        def param_values(self, value):
+            return self.sdk.discover_devices()
+    
+    It can also be used with a set list of defaults, or with no defaults at all::
+
+        puzzlepiece.param.dropdown(self, 'param_name', 'one')(['one', 'two', 'three'])
+        puzzlepiece.param.dropdown(self, 'param_name', 'four')(None)
+
+    Setters and getters can then be added using :func:`puzzlepiece.param.BaseParam.set_getter`
+    and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
+
+        @puzzlepiece.param.dropdown(self, 'serial_number', '')
+        def serial_number(self, value):
+            return self.sdk.discover_devices()
+        
+        @serial_number.set_getter(self)
+        def serial_number(self):
+            return self.sdk.get_serial()
+
+        @serial_number.set_setter(self)
+        def serial_number(self, value):
+            return self.sdk.set_serial(value) 
+
+    The returned param displays a dropdown and stores a string. The user can edit the dropdown's
+    text field directly, and pressing enter will add the current value to the dropdown.
+
+    The default param value provided here as `value` will either be selected from the dropdown if
+    available, or inserted into the text field as if a user typed it otherwise.
+    """
+
+    def decorator(values):
+        if callable(values):
+            # `values` can be a function that returns a list of values
+            values = values(piece)
+        piece.params[name] = ParamDropdown(name, value, values, None, None, visible)
         return piece.params[name]
     return decorator

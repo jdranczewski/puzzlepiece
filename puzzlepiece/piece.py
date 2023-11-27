@@ -26,6 +26,10 @@ class Piece(QtWidgets.QGroupBox):
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
         self.shortcuts = {}
+
+        if not self.puzzle.debug:
+            self.setup()
+        
         self.define_params()
         self.define_readouts()
         self.define_actions()
@@ -48,9 +52,6 @@ class Piece(QtWidgets.QGroupBox):
 
         if custom_layout is None or custom_horizontal:
             control_layout.addStretch()
-
-        if not self.puzzle.debug:
-            self.setup()
 
     def param_layout(self, wrap=1):
         """
