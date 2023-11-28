@@ -160,7 +160,11 @@ def ensurer(ensure_function):
     function - for example checking if a laser is connected ahead of trying to set its power.
     This way one ensurer can be written and used in multiple places easily.
 
-    For example, an ensurer can be defined as a Piece's method (in the main body of the class)::
+    Note that **the method being decorated should raise an exception if the check fails!** This way
+    execution will stop if the condition is not met. This is not mandatory though - custom behaviour
+    is allowed.
+
+    For example, an ensurer can be defined as a Piece's method (in the main body of the class).::
 
         @puzzlepiece.piece.ensurer
         def _ensure_connected(self):
@@ -179,14 +183,20 @@ def ensurer(ensure_function):
         def wavelength(self, value):
             self.laser.set_wavelength(value)
 
-    It can also be called directly if preferred::
+    It can also be called directly if preferred, optionally with `capture_exception=True`
+    which will return True if the check passes, or False if the check raises an Exception::
 
+        # This should raise an Exception is the check fails
         self._ensure_connected()
+
+        # This will not raise an Exception is the check fails
+        if self._ensure_connected(capture_exception=True):
+            print("laser is connected!")
     """
     # Decorating a class method with ensure makes it a decorator.
     # Here we create this decorator and return it. 
     @wraps(ensure_function)
-    def ensure_decorator(self, main_function=None):
+    def ensure_decorator(self, main_function=None, capture_exception=False):
         if main_function is not None:
             # This means ensure_decorator was used as a decorator, and
             # main_function is the function being decorated. We therefore
@@ -200,5 +210,12 @@ def ensurer(ensure_function):
             # If main_function is None, ensure_decorator has been called
             # directly instead of being used as a decorator, so we 
             # just execute ensure_function
-            ensure_function(self)
+            if capture_exception:
+                try:
+                    ensure_function(self)
+                except:
+                    return False
+                return True
+            else:
+                ensure_function(self)
     return ensure_decorator
