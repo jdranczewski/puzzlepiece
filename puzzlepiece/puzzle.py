@@ -35,11 +35,38 @@ class PieceDict:
 
 
 class Globals:
+    """
+    A dictionary wrapper used for :attr:`puzzlepiece.puzzle.Puzzle.globals`. It behaves like
+    a dictionary, allowing :class:`puzzlepiece.piece.Piece` objects to share device APIs
+    with each other.
+
+    Additionally, :func:`~puzzlepiece.puzzle.Globals.require` and
+    :func:`~puzzlepiece.puzzle.Globals.release` can be used to keep track of the Pieces
+    using a given variable, so that the API can be loaded once and then unloaded once
+    all the Pieces are done with it.
+    """
     def __init__(self):
         self._dict = {}
         self._counts = {}
 
     def require(self, name):
+        """
+        Register that a Piece is using the variable with a given name. This will increase
+        an internal counter to indicate the Piece having a hold on the variable.
+
+        Returns `False` if this is the first time a variable is being registered (and thus
+        setup is needed) or `True` if the variable has been registered already.
+
+        For example, this can be used within :func:`~puzzlepiece.piece.Piece.setup`::
+
+            def setup(self):
+                if not self.puzzle.globals.require('sdk'):
+                    # Load the SDK if not done already by a different Piece
+                    self.puzzle.globals['sdk'] = self.load_sdk()
+
+        :param name: a dictionary key for the required variable
+        :rtype: bool
+        """
         if name not in self._dict:
             self._dict[name] = None
             self._counts[name] = 1
@@ -49,6 +76,25 @@ class Globals:
             return True
         
     def release(self, name):
+        """
+        Indicate that a Piece is done using the variable with a given name.
+        This will decrease an internal counter to indicate the Piece is releasing
+        its hold on the variable.
+
+        Returns `False` if the counter is non-zero (so different Pieces are still using
+        this variable) or `True` if all Pieces are done with the variable (in that case
+        the SDK can be safely shut down for example).
+
+        For example, this can be used within :func:`~puzzlepiece.piece.Piece.handle_close`::
+
+            def handle_close(self):
+                if self.puzzle.globals.release('sdk'):
+                    # Unload the SDK if all Pieces are done with it
+                    self.puzzle.globals['sdk'].stop()
+
+        :param name: a dictionary key for the variable being released
+        :rtype: bool
+        """
         if name not in self._dict:
             raise KeyError(f"No global variable with id '{name}' to release")
         if name not in self._counts:
@@ -408,8 +454,9 @@ class Puzzle(QtWidgets.QWidget):
         """
         self._shutdown_threads.emit()
         
-        for piece_name in self.pieces:
-            self.pieces[piece_name].handle_close(event)
+        if not self.debug:
+            for piece_name in self.pieces:
+                self.pieces[piece_name].handle_close(event)
         super().closeEvent(event)
 
 
