@@ -213,6 +213,14 @@ class BaseParam(QtWidgets.QWidget):
         Set the value of the input box. This should be overriden to implement
         custom param display types.
 
+        As this is a low-level method used internally, it **should not** emit valueChanged
+        signals for its input box. To stop this from happening, use Qt's `blockSignals`
+        method::
+
+            self.input.blockSignals(True)
+            self.input.setText(value)
+            self.input.blockSignals(False)
+
         :meta public:
         """
         self.input.setText(self._format.format(value))
