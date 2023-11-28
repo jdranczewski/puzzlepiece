@@ -1,4 +1,5 @@
 from pyqtgraph.Qt import QtWidgets
+from functools import wraps
 import math
 
 class Piece(QtWidgets.QGroupBox):
@@ -150,3 +151,54 @@ class Piece(QtWidgets.QGroupBox):
         """
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
+
+
+def ensurer(ensure_function):
+    """
+    An ensurer is a decorator that can be placed on getters, setters, and actions, and it will run
+    ahead of these functions. The intended behaviour is performing checks ahead of running the
+    function - for example checking if a laser is connected ahead of trying to set its power.
+    This way one ensurer can be written and used in multiple places easily.
+
+    For example, an ensurer can be defined as a Piece's method (in the main body of the class)::
+
+        @puzzlepiece.piece.ensurer
+        def _ensure_connected(self):
+            if not self.params['connected'].get_value():
+                raise Exception('Laser not connected') 
+    
+    This can then be used when defining a param (below the param-defining decorator)::
+
+        @puzzlepiece.param.spinbox(self, 'power', 0.)
+        @self._ensure_connected
+        def power(self, value):
+            self.laser.set_power(value)
+
+        @puzzlepiece.param.spinbox(self, 'wavelength', 0.)
+        @self._ensure_connected
+        def wavelength(self, value):
+            self.laser.set_wavelength(value)
+
+    It can also be called directly if preferred::
+
+        self._ensure_connected()
+    """
+    # Decorating a class method with ensure makes it a decorator.
+    # Here we create this decorator and return it. 
+    @wraps(ensure_function)
+    def ensure_decorator(self, main_function=None):
+        if main_function is not None:
+            # This means ensure_decorator was used as a decorator, and
+            # main_function is the function being decorated. We therefore
+            # wrap it with the ensuring functionality and return it 
+            @wraps(main_function)
+            def wrapped_main(self, *args, **kwargs):
+                ensure_function(self)
+                return main_function(self, *args, **kwargs)
+            return wrapped_main
+        else:
+            # If main_function is None, ensure_decorator has been called
+            # directly instead of being used as a decorator, so we 
+            # just execute ensure_function
+            ensure_function(self)
+    return ensure_decorator
