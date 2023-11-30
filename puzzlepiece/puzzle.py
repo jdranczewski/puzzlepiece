@@ -2,128 +2,6 @@ from pyqtgraph.Qt import QtWidgets, QtCore
 from . import parse
 import sys
 
-class PieceDict:
-    """
-    A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
-    a Piece tries to use another Piece that hasn't been registered.
-    """
-    def __init__(self):
-        self._dict = {}
-
-    def __setitem__(self, key, value):
-        if key in self._dict:
-            raise KeyError("A Piece with id '{}' already exists".format(key))
-        self._dict[key] = value
-
-    def __iter__(self):
-        for key in self._dict:
-            yield key
-    
-    def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("A Piece with id '{}' is required, but doesn't exist".format(key))
-        return self._dict[key]
-    
-    def __contains__(self, item):
-        return item in self._dict
-    
-    def keys(self):
-        return self._dict.keys()
-    
-    def __repr__(self):
-        return "PieceDict({})".format(", ".join(self._dict.keys()))
-
-
-class Globals:
-    """
-    A dictionary wrapper used for :attr:`puzzlepiece.puzzle.Puzzle.globals`. It behaves like
-    a dictionary, allowing :class:`puzzlepiece.piece.Piece` objects to share device APIs
-    with each other.
-
-    Additionally, :func:`~puzzlepiece.puzzle.Globals.require` and
-    :func:`~puzzlepiece.puzzle.Globals.release` can be used to keep track of the Pieces
-    using a given variable, so that the API can be loaded once and then unloaded once
-    all the Pieces are done with it.
-    """
-    def __init__(self):
-        self._dict = {}
-        self._counts = {}
-
-    def require(self, name):
-        """
-        Register that a Piece is using the variable with a given name. This will increase
-        an internal counter to indicate the Piece having a hold on the variable.
-
-        Returns `False` if this is the first time a variable is being registered (and thus
-        setup is needed) or `True` if the variable has been registered already.
-
-        For example, this can be used within :func:`~puzzlepiece.piece.Piece.setup`::
-
-            def setup(self):
-                if not self.puzzle.globals.require('sdk'):
-                    # Load the SDK if not done already by a different Piece
-                    self.puzzle.globals['sdk'] = self.load_sdk()
-
-        :param name: a dictionary key for the required variable
-        :rtype: bool
-        """
-        if name not in self._dict:
-            self._dict[name] = None
-            self._counts[name] = 1
-            return False
-        else:
-            self._counts[name] += 1
-            return True
-        
-    def release(self, name):
-        """
-        Indicate that a Piece is done using the variable with a given name.
-        This will decrease an internal counter to indicate the Piece is releasing
-        its hold on the variable.
-
-        Returns `False` if the counter is non-zero (so different Pieces are still using
-        this variable) or `True` if all Pieces are done with the variable (in that case
-        the SDK can be safely shut down for example).
-
-        For example, this can be used within :func:`~puzzlepiece.piece.Piece.handle_close`::
-
-            def handle_close(self):
-                if self.puzzle.globals.release('sdk'):
-                    # Unload the SDK if all Pieces are done with it
-                    self.puzzle.globals['sdk'].stop()
-
-        :param name: a dictionary key for the variable being released
-        :rtype: bool
-        """
-        if name not in self._dict:
-            raise KeyError(f"No global variable with id '{name}' to release")
-        if name not in self._counts:
-            raise KeyError(f"Cannot release '{name}' since it hasn't been registered with 'require'")
-        self._counts[name] -= 1
-        return self._counts[name] < 1
-
-    def __setitem__(self, key, value):
-        self._dict[key] = value
-    
-    def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("No global variable with id '{}'".format(key))
-        return self._dict[key]
-    
-    def __delitem__(self, key):
-        del self._dict[key]
-        if key in self._counts:
-            del self._counts[key]
-    
-    def __contains__(self, item):
-        return item in self._dict
-    
-    def keys(self):
-        return self._dict.keys()
-    
-    def __repr__(self):
-        return "Globals({})".format(", ".join(self._dict.keys()))
-
 
 class Puzzle(QtWidgets.QWidget):
     """
@@ -463,6 +341,13 @@ class Puzzle(QtWidgets.QWidget):
         super().closeEvent(event)
 
 
+QApp = QtWidgets.QApplication
+"""A QApplication has to be constructed before any Qt objects
+(including the Puzzle and the Pieces), so this is a convenient shortcut to
+the QApplication class (see https://doc.qt.io/qt-6/qapplication.html).
+"""
+
+
 class Folder(QtWidgets.QTabWidget):
     """
     A tabbed group of :class:`~puzzlepiece.puzzle.Piece` or :class:`~puzzlepiece.puzzle.Grid`
@@ -574,4 +459,125 @@ class Grid(QtWidgets.QWidget):
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
 
+
+class PieceDict:
+    """
+    A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
+    a Piece tries to use another Piece that hasn't been registered.
+    """
+    def __init__(self):
+        self._dict = {}
+
+    def __setitem__(self, key, value):
+        if key in self._dict:
+            raise KeyError("A Piece with id '{}' already exists".format(key))
+        self._dict[key] = value
+
+    def __iter__(self):
+        for key in self._dict:
+            yield key
+    
+    def __getitem__(self, key):
+        if key not in self._dict:
+            raise KeyError("A Piece with id '{}' is required, but doesn't exist".format(key))
+        return self._dict[key]
+    
+    def __contains__(self, item):
+        return item in self._dict
+    
+    def keys(self):
+        return self._dict.keys()
+    
+    def __repr__(self):
+        return "PieceDict({})".format(", ".join(self._dict.keys()))
+
+
+class Globals:
+    """
+    A dictionary wrapper used for :attr:`puzzlepiece.puzzle.Puzzle.globals`. It behaves like
+    a dictionary, allowing :class:`puzzlepiece.piece.Piece` objects to share device APIs
+    with each other.
+
+    Additionally, :func:`~puzzlepiece.puzzle.Globals.require` and
+    :func:`~puzzlepiece.puzzle.Globals.release` can be used to keep track of the Pieces
+    using a given variable, so that the API can be loaded once and then unloaded once
+    all the Pieces are done with it.
+    """
+    def __init__(self):
+        self._dict = {}
+        self._counts = {}
+
+    def require(self, name):
+        """
+        Register that a Piece is using the variable with a given name. This will increase
+        an internal counter to indicate the Piece having a hold on the variable.
+
+        Returns `False` if this is the first time a variable is being registered (and thus
+        setup is needed) or `True` if the variable has been registered already.
+
+        For example, this can be used within :func:`~puzzlepiece.piece.Piece.setup`::
+
+            def setup(self):
+                if not self.puzzle.globals.require('sdk'):
+                    # Load the SDK if not done already by a different Piece
+                    self.puzzle.globals['sdk'] = self.load_sdk()
+
+        :param name: a dictionary key for the required variable
+        :rtype: bool
+        """
+        if name not in self._dict:
+            self._dict[name] = None
+            self._counts[name] = 1
+            return False
+        else:
+            self._counts[name] += 1
+            return True
         
+    def release(self, name):
+        """
+        Indicate that a Piece is done using the variable with a given name.
+        This will decrease an internal counter to indicate the Piece is releasing
+        its hold on the variable.
+
+        Returns `False` if the counter is non-zero (so different Pieces are still using
+        this variable) or `True` if all Pieces are done with the variable (in that case
+        the SDK can be safely shut down for example).
+
+        For example, this can be used within :func:`~puzzlepiece.piece.Piece.handle_close`::
+
+            def handle_close(self):
+                if self.puzzle.globals.release('sdk'):
+                    # Unload the SDK if all Pieces are done with it
+                    self.puzzle.globals['sdk'].stop()
+
+        :param name: a dictionary key for the variable being released
+        :rtype: bool
+        """
+        if name not in self._dict:
+            raise KeyError(f"No global variable with id '{name}' to release")
+        if name not in self._counts:
+            raise KeyError(f"Cannot release '{name}' since it hasn't been registered with 'require'")
+        self._counts[name] -= 1
+        return self._counts[name] < 1
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+    
+    def __getitem__(self, key):
+        if key not in self._dict:
+            raise KeyError("No global variable with id '{}'".format(key))
+        return self._dict[key]
+    
+    def __delitem__(self, key):
+        del self._dict[key]
+        if key in self._counts:
+            del self._counts[key]
+    
+    def __contains__(self, item):
+        return item in self._dict
+    
+    def keys(self):
+        return self._dict.keys()
+    
+    def __repr__(self):
+        return "Globals({})".format(", ".join(self._dict.keys()))     

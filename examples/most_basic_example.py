@@ -4,7 +4,7 @@ import puzzlepiece as pzp
 from puzzlepiece.pieces import random_number, plotter
 
 # Create a Qt app to contain the whole thing
-app = QtWidgets.QApplication([])
+app = pzp.QApp([])
 
 # Create a Puzzle
 puzzle = pzp.Puzzle(app, "Basic example", debug=True)

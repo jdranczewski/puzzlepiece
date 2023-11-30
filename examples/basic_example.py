@@ -1,10 +1,9 @@
 import puzzlepiece as pzp
 from puzzlepiece.pieces import random_number, plotter, scan_value, script
-from pyqtgraph.Qt import QtWidgets
 
 def main():
     # Define the containing app
-    app = QtWidgets.QApplication([])
+    app = pzp.QApp([])
 
     # Create a Puzzle
     puzzle = pzp.Puzzle(app, "Basic example", debug=True)
