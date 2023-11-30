@@ -1,8 +1,7 @@
 # Import the automation framework
 import puzzlepiece as pzp
 # Import the random number generator Piece
-from puzzlepiece.pieces import random_number
-from pyqtgraph.Qt import QtWidgets
+from puzzlepiece.pieces import random_number, plotter
 
 # Create a Qt app to contain the whole thing
 app = QtWidgets.QApplication([])
@@ -10,9 +9,9 @@ app = QtWidgets.QApplication([])
 # Create a Puzzle
 puzzle = pzp.Puzzle(app, "Basic example", debug=True)
 
-# Cerate a Piece and add it to the Puzzle
-piece = random_number.Piece(puzzle)
-puzzle.add_piece("random", piece, 0, 0)
+# Add Pieces to the Puzzle
+puzzle.add_piece("random", random_number.Piece, 0, 0)
+puzzle.add_piece("plotter", plotter.Piece, 0, 1)
 
 # Show the Puzzle window
 puzzle.show()

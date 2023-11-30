@@ -7,17 +7,17 @@ def main():
     app = QtWidgets.QApplication([])
 
     # Create a Puzzle
-    window = pzp.Puzzle(app, "Basic example", debug=True)
+    puzzle = pzp.Puzzle(app, "Basic example", debug=True)
 
     # Add Pieces
-    window.add_piece("random", random_number.Piece(window), 0, 0)
-    folder = window.add_folder(0, 1)
-    folder.add_piece("plotter", plotter.Piece(window))
-    folder.add_piece("scan_value", scan_value.Piece(window))
-    folder.add_piece("script", script.Piece(window))
+    puzzle.add_piece("random", random_number.Piece, 0, 0)
+    folder = puzzle.add_folder(0, 1)
+    folder.add_piece("plotter", plotter.Piece)
+    folder.add_piece("scan_value", scan_value.Piece)
+    folder.add_piece("script", script.Piece)
 
     # Run a setup script
-    window.run("""
+    puzzle.run("""
 set:plotter:param:random:number
 set:scan_value:params:random:max
 set:scan_value:obtain:random:number
@@ -26,7 +26,7 @@ set:scan_value:finish:10
 """)
 
     # Show the app
-    window.show()
+    puzzle.show()
     app.exec()
 
 if __name__ == "__main__":

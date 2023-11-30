@@ -190,12 +190,15 @@ class Puzzle(QtWidgets.QWidget):
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the Puzzle.
 
         :param name: Identifying string for the Piece.
-        :param piece: A :class:`~puzzlepiece.piece.Piece` object.
+        :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
+          be automatically instantiated).
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
         :param column: Width in columns.
         """
+        if isinstance(piece, type):
+            piece = piece(self)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
         self.register_piece(name, piece)
@@ -478,9 +481,11 @@ class Folder(QtWidgets.QTabWidget):
         parent :class:`~puzzlepiece.puzzle.Puzzle`.
 
         :param name: Identifying string for the Piece.
-        :param piece: A :class:`~puzzlepiece.piece.Piece` object.
+        :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
+          be automatically instantiated).
         """
-
+        if isinstance(piece, type):
+            piece = piece(self.puzzle)
         self.addTab(piece, name)
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
@@ -536,12 +541,15 @@ class Grid(QtWidgets.QWidget):
         :class:`~puzzlepiece.puzzle.Puzzle`.
 
         :param name: Identifying string for the Piece.
-        :param piece: A :class:`~puzzlepiece.piece.Piece` object.
+        :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
+          be automatically instantiated).
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
         :param column: Width in columns.
         """
+        if isinstance(piece, type):
+            piece = piece(self.puzzle)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
