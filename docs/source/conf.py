@@ -29,7 +29,7 @@ exclude_patterns = []
 
 autodoc_member_order = 'bysource'
 
-autodoc_mock_imports = ["pyqtgraph", "QtPy", "numpy"]
+# autodoc_mock_imports = ["pyqtgraph", "QtPy", "numpy"]
 
 
 # -- Options for HTML output -------------------------------------------------
