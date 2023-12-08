@@ -103,10 +103,17 @@ class BaseParam(QtWidgets.QWidget):
         """
         Set the value of the param. If a setter is registered, it will be called.
 
-        If the setter returns a value, it will become the new value of this param.
+        If the setter returns a value, this will become the new value of this param.
+
+        If the setter doesn't return a value, the getter will be called if present,
+        and the value it returns will become the new value of this param.
+
+        If the setter doesn't return a value, and there is no getter, the value
+        provided as an argument will become the new value of this param
 
         :param value: The value this param should be set to (if None, we grab the value from
           the param's input box.)
+        :returns: The new value of the param.
         """
         # If a value is not provided, grab one from the input
         if value is None:
@@ -128,13 +135,15 @@ class BaseParam(QtWidgets.QWidget):
                     new_value = value
             # Update the value stored to the new value
             self._value = new_value
-            # Update the input as well, clearing the highlight
+            # Update the input as well
             self._input_set_value(new_value)
         else:
             self._value = value
 
+        # Clear the highlight and emit the changed signal
         self.input.setStyleSheet("")
         self.changed.emit()
+        return self._value
 
     def get_value(self):
         """
