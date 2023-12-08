@@ -401,21 +401,44 @@ class ParamCheckbox(BaseParam):
             # Flip back the checkbox if the click resulted in an error
             self.input.setChecked(not(self.input.isChecked()))
             raise e
- 
+
+
+class _PartialAccessor:
+    def __init__(self, param):
+        self.param = param
+
+    def __setitem__(self, key, value):
+        self.param._value.__setitem__(key, value)
+        self.param.set_value()
 
 class ParamArray(BaseParam):
     """
     A param that stores a numpy array. There is no GUI input, the Param simply displays the
     dimensions of the array, and indicates when the data has been updated.
 
-    The array can be modified programmatically by providing setters or getters, or using
-    :func:`~puzzlepiece.param.BaseParam.set_value`.
+    The array can be modified through programmatic interaction with setter or getter functions
+    (for example the array can be obtained from a hardware spectrometer), or treated as a variable
+    and set using :func:`~puzzlepiece.param.BaseParam.set_value`.
     """
     _type = np.asarray
 
     def __init__(self, name, value, setter=None, getter=None, visible=True, format='{}', _type=None, *args, **kwargs):
         self._indicator_state = True
+        self._partial_accessor = _PartialAccessor(self)
         super().__init__(name, value, setter, getter, visible, format, _type, *args, **kwargs)
+
+    @property
+    def set_partial(self):
+        """
+        Use this property to set values to slices of the stored numpy array, using
+        any slicing methods that a numpy array accepts::
+
+            puzzle['piece'].params['image'].set_partial[100:200, :] = 128
+
+        This will call the param's setter if there's one, and in general
+        acts like :func:`~puzzlepiece.param.BaseParam.set_value`.
+        """
+        return self._partial_accessor
 
     def _make_input(self, value=None, connect=None):
         """
@@ -430,7 +453,27 @@ class ParamArray(BaseParam):
         """
         :meta private:
         """
-        self.input.setText(self._format_array(value)) 
+        self.input.setText(self._format_array(value))
+
+    def _input_get_value(self):
+        """
+        :meta private:
+        """
+        return self._value
+    
+    def set_value(self, value=None):
+        """
+        This method overrides :func:`puzzlepiece.param.BaseParam.set_value`.
+        See there for documentation.
+
+        :meta private:
+        """
+        # Small check to account for the label being set twice
+        # in super().set_value(value) when the
+        # value argument is None
+        if value is not None:
+            self._indicator_state = not self._indicator_state
+        return super().set_value(value)
 
     def _format_array(self, value):
         self._indicator_state = not self._indicator_state
