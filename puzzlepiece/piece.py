@@ -118,6 +118,21 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
+    def open_popup(self, popup):
+        dialog = QtWidgets.QDialog(self)
+        layout = QtWidgets.QVBoxLayout()
+        dialog.setLayout(layout)
+
+        popup = popup(self, self.puzzle)
+        popup.setStyleSheet("QGroupBox {border:0;}")
+        layout.addWidget(popup)
+
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+        return popup
+
     def call_stop(self):
         """
         This method is called by the parent Puzzle when a global stop is called.
@@ -219,3 +234,8 @@ def ensurer(ensure_function):
             else:
                 ensure_function(self)
     return ensure_decorator
+
+class Popup(Piece):
+    def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
+        self.parent_piece = parent_piece
+        super().__init__(puzzle, custom_horizontal, *args, **kwargs)
