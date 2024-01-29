@@ -396,7 +396,9 @@ class ParamCheckbox(BaseParam):
         try:
             if self._connected_click_handler is not None:
                 self._connected_click_handler()
-            self.set_value()
+            if self._setter is not None:
+                # If there's a setter, we need to explicitly call set_value here
+                self.set_value()
         except Exception as e:
             # Flip back the checkbox if the click resulted in an error
             self.input.setChecked(not(self.input.isChecked()))
@@ -534,6 +536,45 @@ class ParamDropdown(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.currentText()
+    
+class ParamProgress(BaseParam):
+    """
+    A param with a progress bar. See the :func:`~puzzlepiece.param.progress` decorator below
+    for how to use this in your Piece.
+    """
+    _type = float
+
+    def _make_input(self, value=None, connect=None):
+        """:meta private:"""
+        input = QtWidgets.QProgressBar()
+        input.setMinimum(0)
+        input.setMaximum(1000)
+        if value is not None:
+            input.setValue(value)
+        return input, True
+
+    def _input_set_value(self, value):
+        """:meta private:"""
+        if value < 0:
+            self.input.setMaximum(0)
+        else:
+            self.input.setMaximum(1000)
+            self.input.setValue(int(value*1000))
+
+    def _input_get_value(self):
+        """:meta private:"""
+        return self.input.value()
+    
+    def iter(self, iterable):
+        if hasattr(iterable, '__len__'):
+            length = len(iterable)
+        else:
+            length = -1
+
+        for i, value in enumerate(iterable):
+            self.set_value(i/length)
+            yield value
+        self.set_value(1)
 
 def wrap_setter(piece, setter):
     """
@@ -757,5 +798,20 @@ def dropdown(piece, name, value, visible=True):
             # `values` can be a function that returns a list of values
             values = values(piece)
         piece.params[name] = ParamDropdown(name, value, values, None, None, visible)
+        return piece.params[name]
+    return decorator
+
+def progress(piece, name, visible=True):
+    """
+    A decorator generator for registering a :class:`~puzzlepiece.param.ParamProgress` in a Piece's
+    :func:`~puzzlepiece.piece.Piece.define_params` method with a given **getter**.
+
+    This will display the current progress value on a scale of 0 to 1 with no option to edit it.
+
+    See :func:`~puzzlepiece.param.base_param` for more details.
+    """
+    def decorator(getter):
+        wrapper = wrap_getter(piece, getter)
+        piece.params[name] = ParamProgress(name, None, setter=None, getter=wrapper, visible=visible)
         return piece.params[name]
     return decorator
