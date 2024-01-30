@@ -37,7 +37,27 @@ class Puzzle(QtWidgets.QWidget):
 
         self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
 
-        sys.excepthook = self._excepthook
+        # This hack allows us to handle exceptions through the Puzzle in IPython.
+        # Normally when a cell is executed in an IPython InteractiveShell,
+        # sys.excepthook is overwritten with shell.excepthook, and then restored
+        # to sys.excepthook after the cell run finishes. Any changes we make to
+        # sys.excepthook in here directly will thus be overwritten as soon as the
+        # cell that defines the Puzzle finishes running.
+            
+        # Instead, we schedule set_excepthook on a QTimer, meaning that it will
+        # execute in the Qt loop rather than in a cell, so it can modify
+        # sys.excepthook without risk of the changes being immediately overwritten,
+            
+        # For bonus points, we could set _old_excepthook to shell.excepthook,
+        # which would result in all tracebacks appearing in the Notebook rather
+        # than the console, but I think that is not desireable.
+
+        # In normal Python, we could just say "sys.excepthook = self._excepthook"
+        # but this method works for both.
+        def set_excepthook():
+            self._old_excepthook = sys.excepthook
+            sys.excepthook = self._excepthook
+        QtCore.QTimer.singleShot(0, set_excepthook)
 
     @property
     def pieces(self):
@@ -130,7 +150,7 @@ class Puzzle(QtWidgets.QWidget):
         self._threadpool.start(worker)
 
     def _excepthook(self, exctype, value, traceback):
-        sys.__excepthook__(exctype, value, traceback)
+        self._old_excepthook(exctype, value, traceback)
 
         # Stop any threads that may be running
         self._shutdown_threads.emit()
@@ -341,6 +361,9 @@ class Puzzle(QtWidgets.QWidget):
         if not self.debug:
             for piece_name in self.pieces:
                 self.pieces[piece_name].handle_close(event)
+
+        # Reinstate the original excepthook
+        sys.excepthook = self._old_excepthook
         super().closeEvent(event)
 
 
