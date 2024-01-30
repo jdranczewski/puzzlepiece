@@ -132,6 +132,9 @@ class Puzzle(QtWidgets.QWidget):
     def _excepthook(self, exctype, value, traceback):
         sys.__excepthook__(exctype, value, traceback)
 
+        # Stop any threads that may be running
+        self._shutdown_threads.emit()
+
         # Only do custom exception handling in the main thread, otherwise the messagebox
         # or other such things are likely to break things.
         if QtCore.QThread.currentThread() == self.app.thread():
