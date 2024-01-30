@@ -239,3 +239,4 @@ class Popup(Piece):
     def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
         self.parent_piece = parent_piece
         super().__init__(puzzle, custom_horizontal, *args, **kwargs)
+        self.layout.setContentsMargins(0,0,0,0)
