@@ -130,6 +130,7 @@ class BaseParam(QtWidgets.QWidget):
                 # If the setter did not return a value, see if there is a getter
                 if self._getter is not None:
                     new_value = self._getter()
+                    new_value = self._type(new_value)
                 else:
                     # Otherwise the new value is just the value we're setting
                     new_value = value
