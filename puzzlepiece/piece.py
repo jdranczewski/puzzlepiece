@@ -7,11 +7,12 @@ class Piece(QtWidgets.QGroupBox):
     A single `Piece` object is an unit of automation - an object that is meant to represent a single
     physical instrument (like a laser) or a particular functionality (like a plotter or a parameter scan).
 
-    Pieces can be assembled into a :class:`~puzzlepiece.puzzle.Puzzle`.
+    Pieces can be assembled into a :class:`~puzzlepiece.puzzle.Puzzle` using the Puzzle's
+    :func:`~puzzlepiece.puzzle.Puzzle.add_piece` method.
 
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
-    :param custom_horizontal: A bool flat, the custom layout is displayed to the right of the main controls
-                                if True.
+    :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
+                              if True.
     """
     def __init__(self, puzzle, custom_horizontal=False, *args, **kwargs):
         super().__init__()
@@ -72,7 +73,7 @@ class Piece(QtWidgets.QGroupBox):
         """
         Genereates a `QGridLayout` for the actions. Override to set a different wrapping.
 
-        :param wrap: the number of columns the actions are displayed in .
+        :param wrap: the number of columns the actions are displayed in.
         :rtype: QtWidgets.QGridLayout
         """
         layout = QtWidgets.QGridLayout()
@@ -118,6 +119,35 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
+    def open_popup(self, popup):
+        """
+        Open a popup window for this Piece. A popup is a :class:`puzzlepiece.piece.Popup`
+        object, which is like a Piece but floats in a separate window attached to the main
+        :class:`~puzzlepiece.puzzle.Puzzle`. This can be used for handling additional tasks
+        that you don't want to clutter the main Piece. See :class:`puzzlepiece.piece.Popup`
+        for details on implementing a Popup.
+
+        :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
+        :rtype: puzzlepiece.piece.Popup
+        """
+        # Instantiate the popup
+        if isinstance(popup, type):
+            popup = popup(self, self.puzzle)
+        popup.setStyleSheet("QGroupBox {border:0;}")
+
+        # Make a dialog window for the popup to live in
+        dialog = _QDialog(self, popup)
+        layout = QtWidgets.QVBoxLayout()
+        dialog.setLayout(layout)
+        layout.addWidget(popup)
+
+        # Display the dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+        return popup
+
     def call_stop(self):
         """
         This method is called by the parent Puzzle when a global stop is called.
@@ -130,8 +160,8 @@ class Piece(QtWidgets.QGroupBox):
 
     def handle_close(self, event):
         """
-        Only called if the :class:`~puzzlepiece.puzzle.Puzzle` debug flag is False.
-        Override to disconnect hardware etc when the main window closes.
+        Only called if the :class:`~puzzlepiece.puzzle.Puzzle` :attr:`~puzzlepiece.puzzle.Puzzle.debug`
+        flag is False. Override to disconnect hardware etc when the main window closes.
         """
         pass
 
@@ -219,3 +249,64 @@ def ensurer(ensure_function):
             else:
                 ensure_function(self)
     return ensure_decorator
+
+class _QDialog(QtWidgets.QDialog):
+    """
+    A variant of the QDialog specifically for popups, handles closing them
+    with a custom function.
+    """
+    def __init__(self, parent, popup, *args, **kwargs):
+        self.popup = popup
+        super().__init__(parent, *args, **kwargs)
+    
+    def closeEvent(self, event):
+        self.popup.handle_close()
+        super().closeEvent(event)
+
+class Popup(Piece):
+    """
+    A Popup is similar to a Piece, but floats in a separate window attached to the main
+    :class:`~puzzlepiece.puzzle.Puzzle`. This can be used for handling additional tasks
+    that you don't want to clutter the main Piece. For example you can have a camera
+    Piece which can open a Popup to set the camera's region of interest with an interactive
+    plot window.
+
+    A Popup can be created and displayed by calling :func:`puzzlepiece.piece.Piece.open_popup`.
+
+    A Popup is attached to a specific Piece and knows it through its 
+    :attr:`~puzzlepiece.piece.Popup.parent_piece` attribute, but it can also access other
+    Pieces through the Puzzle, which it knows through its :attr:`~puzzlepiece.piece.Piece.puzzle`
+    attribute.
+
+    A Popup can have params, actions, and custom layouts just like a normal Piece, and are created by
+    overriding :func:`~puzzlepiece.piece.Piece.define_params`, :func:`~puzzlepiece.piece.Piece.define_actions`,
+    and :func:`~puzzlepiece.piece.Piece.custom_layout` like for a Piece.
+
+    :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
+    :param parent_piece: The parent :class:`~puzzlepiece.piece.Piece`.
+    :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
+                              if True.
+    """
+    def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
+        self._parent_piece = parent_piece
+        super().__init__(puzzle, custom_horizontal, *args, **kwargs)
+        self.layout.setContentsMargins(0,0,0,0)
+
+    @property
+    def parent_piece(self):
+        """
+        A reference to this Popup's parent :class:`~puzzlepiece.piece.Piece`,
+        the one that created it through :func:`puzzlepiece.piece.Piece.open_popup`.
+        """
+        return self._parent_piece
+    
+    def handle_close(self):
+        """
+        Called when the Popup is closed. Override to perform actions when the user
+        closes this Popup - for example delete related plot elements.
+
+        In contrast to :func:`puzzlepiece.piece.Piece.handle_close`, this is called even
+        if the :class:`~puzzlepiece.puzzle.Puzzle` :attr:`~puzzlepiece.puzzle.Puzzle.debug`
+        flag is True.
+        """
+        pass

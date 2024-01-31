@@ -37,7 +37,39 @@ class Puzzle(QtWidgets.QWidget):
 
         self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
 
-        sys.excepthook = self._excepthook
+        try:
+            # If this doesn't raise a NameError, we're in IPython
+            shell = get_ipython()
+            # _orig_sys_module_state stores the original IPKernelApp excepthook,
+            # irrespective of possible modifications in other cells
+            self._old_excepthook = shell._orig_sys_module_state['excepthook']
+
+            # The following hack allows us to handle exceptions through the Puzzle in IPython.
+            # Normally when a cell is executed in an IPython InteractiveShell,
+            # sys.excepthook is overwritten with shell.excepthook, and then restored
+            # to sys.excepthook after the cell run finishes. Any changes we make to
+            # sys.excepthook in here directly will thus be overwritten as soon as the
+            # cell that defines the Puzzle finishes running.
+                
+            # Instead, we schedule set_excepthook on a QTimer, meaning that it will
+            # execute in the Qt loop rather than in a cell, so it can modify
+            # sys.excepthook without risk of the changes being immediately overwritten,
+                
+            # For bonus points, we could set _old_excepthook to shell.excepthook,
+            # which would result in all tracebacks appearing in the Notebook rather
+            # than the console, but I think that is not desireable.
+            def set_excepthook():
+                sys.excepthook = self._excepthook
+            QtCore.QTimer.singleShot(0, set_excepthook)
+        except NameError:
+            # In normal Python (not IPython) this is comparatively easy.
+            # We use the original system hook here instead of sys.excepthook
+            # to avoid unexpected behaviour if multiple things try to override
+            # the hook in various ways.
+            # If you need to implement custom exception handling, please assign
+            # a value to your Puzzle's ``custom_excepthook`` method.
+            self._old_excepthook = sys.__excepthook__
+            sys.excepthook = self._excepthook
 
     @property
     def pieces(self):
@@ -130,7 +162,10 @@ class Puzzle(QtWidgets.QWidget):
         self._threadpool.start(worker)
 
     def _excepthook(self, exctype, value, traceback):
-        sys.__excepthook__(exctype, value, traceback)
+        self._old_excepthook(exctype, value, traceback)
+
+        # Stop any threads that may be running
+        self._shutdown_threads.emit()
 
         # Only do custom exception handling in the main thread, otherwise the messagebox
         # or other such things are likely to break things.
@@ -338,6 +373,9 @@ class Puzzle(QtWidgets.QWidget):
         if not self.debug:
             for piece_name in self.pieces:
                 self.pieces[piece_name].handle_close(event)
+
+        # Reinstate the original excepthook
+        sys.excepthook = self._old_excepthook
         super().closeEvent(event)
 
 
