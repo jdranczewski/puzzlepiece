@@ -567,6 +567,21 @@ class ParamProgress(BaseParam):
         return self.input.value()
     
     def iter(self, iterable):
+        """
+        Iterable wrapper that automatically updates the progress bar while the provided
+        iterable is iterated over. This is quite similar to how the console progress bar
+        ``tqdm`` works: https://tqdm.github.io/
+
+        For example::
+
+            for i in piece.params['progress'].iter(range(10)):
+                print(i)
+                # this will automatically update the progress bar as the iteration goes on
+                puzzle.process_events() # you may need to refresh the Puzzle to display changes
+        
+        :param iterable: an iterable to wrap
+        :rtype: iterable
+        """
         if hasattr(iterable, '__len__'):
             length = len(iterable)
         else:
