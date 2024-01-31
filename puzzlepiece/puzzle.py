@@ -37,27 +37,39 @@ class Puzzle(QtWidgets.QWidget):
 
         self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
 
-        # This hack allows us to handle exceptions through the Puzzle in IPython.
-        # Normally when a cell is executed in an IPython InteractiveShell,
-        # sys.excepthook is overwritten with shell.excepthook, and then restored
-        # to sys.excepthook after the cell run finishes. Any changes we make to
-        # sys.excepthook in here directly will thus be overwritten as soon as the
-        # cell that defines the Puzzle finishes running.
-            
-        # Instead, we schedule set_excepthook on a QTimer, meaning that it will
-        # execute in the Qt loop rather than in a cell, so it can modify
-        # sys.excepthook without risk of the changes being immediately overwritten,
-            
-        # For bonus points, we could set _old_excepthook to shell.excepthook,
-        # which would result in all tracebacks appearing in the Notebook rather
-        # than the console, but I think that is not desireable.
+        try:
+            # If this doesn't raise a NameError, we're in IPython
+            shell = get_ipython()
+            # _orig_sys_module_state stores the original IPKernelApp excepthook,
+            # irrespective of possible modifications in other cells
+            self._old_excepthook = shell._orig_sys_module_state['excepthook']
 
-        # In normal Python, we could just say "sys.excepthook = self._excepthook"
-        # but this method works for both.
-        def set_excepthook():
-            self._old_excepthook = sys.excepthook
+            # The following hack allows us to handle exceptions through the Puzzle in IPython.
+            # Normally when a cell is executed in an IPython InteractiveShell,
+            # sys.excepthook is overwritten with shell.excepthook, and then restored
+            # to sys.excepthook after the cell run finishes. Any changes we make to
+            # sys.excepthook in here directly will thus be overwritten as soon as the
+            # cell that defines the Puzzle finishes running.
+                
+            # Instead, we schedule set_excepthook on a QTimer, meaning that it will
+            # execute in the Qt loop rather than in a cell, so it can modify
+            # sys.excepthook without risk of the changes being immediately overwritten,
+                
+            # For bonus points, we could set _old_excepthook to shell.excepthook,
+            # which would result in all tracebacks appearing in the Notebook rather
+            # than the console, but I think that is not desireable.
+            def set_excepthook():
+                sys.excepthook = self._excepthook
+            QtCore.QTimer.singleShot(0, set_excepthook)
+        except NameError:
+            # In normal Python (not IPython) this is comparatively easy.
+            # We use the original system hook here instead of sys.excepthook
+            # to avoid unexpected behaviour if multiple things try to override
+            # the hook in various ways.
+            # If you need to implement custom exception handling, please assign
+            # a value to your Puzzle's ``custom_excepthook`` method.
+            self._old_excepthook = sys.__excepthook__
             sys.excepthook = self._excepthook
-        QtCore.QTimer.singleShot(0, set_excepthook)
 
     @property
     def pieces(self):
