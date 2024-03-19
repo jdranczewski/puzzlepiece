@@ -1,5 +1,51 @@
 from qtpy import QtCore, QtWidgets
+from functools import partial
 import time
+
+class CallLater:
+    """
+    A **callable** object that will run a specified function when the next Qt event loop iteration
+    occurs, but only once, irrespective of how many times the ``CallLater`` was called since the
+    last iteration of the event loop.
+
+    This is useful if you are stuck in a long running function and want to schedule something for
+    when it finishes or when :func:`puzzlepiece.puzzle.Puzzle.process_events` is called.
+
+    Let's say a :class:`puzzlepiece.piece.Piece` has an image view defined in
+    :func:`~puzzlepiece.piece.Piece.custom_layout` and we'd like to update the image when the
+    Piece's ``image`` :class:`~puzzlepiece.param.ParamArray` changes. We can then do::
+
+        def update_image():
+            image.setImage(self.params['image'].value)
+        update_later = pzp.threads.CallLater(update_image)
+        self.params['image'].changed.connect(update_later)
+
+    instead of directly connecting ``update_image``. This way the image data will be set only once, when
+    the next GUI update occurs. So the code is more efficient if somewhere else we do::
+
+        for i in range(1000):
+            self.params['image'].get_value()
+            # The image view won't update here as the Qt event loop is stuck inside this function
+        puzzle.process_events()
+        # update_image will be called once as part of this event loop iteration,
+        # instead of a 1000 times.
+        # You can also directly call the CallLater object:
+        update_later()
+
+    This behaviour is implemented through a single shot QTimer stored internally.
+
+    :param function: The function to be called.
+    :param args and kwargs: further arguments and keyword arguments can be provided,
+      they will be passed to the function when it is called.
+    """
+    def __init__(self, function, *args, **kwargs):
+        self._timer = QtCore.QTimer()
+        self._timer.setSingleShot(True)
+        self._timer.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
+        self._timer.timeout.connect(partial(function, *args, **kwargs))
+    
+    def __call__(self, *args, **kwargs):
+        self._timer.start()
 
 class _Emitter(QtCore.QObject):
     # The Emitter is needed as a QRunnable is not a QObject, and cannot emit it's own signals.
