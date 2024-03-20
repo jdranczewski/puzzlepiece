@@ -9,7 +9,8 @@ Welcome to the puzzlepiece documentation!
 **Puzzlepiece is a GUI-forward Python framework for automating experimental setups.** It focuses on abstracting communication
 with a piece of hardware into **standard inputs, outputs, and actions**. It then automatically **generates GUI components** for them,
 minimising the need for boilerplate code. Puzzlepiece allows the user to bring diverse controls into a single, consolidated application,
-and automate their interaction or experiment using a unified API, either through a built-in script language, or Interactive Python.
+and automate their interaction or experiment using a unified API, either by making custom Pieces, or through a built-in script language,
+or with Interactive Python.
 
 You can install puzzlepiece using pip::
 
@@ -94,11 +95,11 @@ For example we can create a Piece that accesses the RandomNumber generator creat
 
    class ManyNumbers(pzp.Piece):
       def define_params(self):
-         # This parameter does not require a setter or getter, so it gets
+         # This param does not require a setter or getter, so it gets
          # None as its argument
          pzp.param.spinbox(self, "N", 10)(None)
 
-         # This parameter contains a numpy array
+         # This param contains a numpy array
          @pzp.param.array(self, 'numbers')
          def numbers(self):
             values = []
