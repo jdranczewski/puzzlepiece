@@ -105,7 +105,7 @@ For example we can create a Piece that accesses the RandomNumber generator creat
             values = []
             # Check this Piece's own param to see how many numbers the user wants
             N = self.params["N"].get_value()
-            for i in range(10):
+            for i in range(N):
                # Get param value from the other Piece
                values.append(puzzle["random_number"].params["number"].get_value())
             return values
