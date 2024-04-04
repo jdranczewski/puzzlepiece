@@ -2,6 +2,7 @@ from qtpy import QtCore, QtWidgets
 from functools import partial
 import time
 
+
 class CallLater:
     """
     A **callable** object that will run a specified function when the next Qt event loop iteration
@@ -38,19 +39,22 @@ class CallLater:
     :param args and kwargs: further arguments and keyword arguments can be provided,
       they will be passed to the function when it is called.
     """
+
     def __init__(self, function, *args, **kwargs):
         self._timer = QtCore.QTimer()
         self._timer.setSingleShot(True)
         self._timer.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
         self._timer.timeout.connect(partial(function, *args, **kwargs))
-    
+
     def __call__(self, *args, **kwargs):
         self._timer.start()
+
 
 class _Emitter(QtCore.QObject):
     # The Emitter is needed as a QRunnable is not a QObject, and cannot emit it's own signals.
     # So we set up the Signal here, and let a Worker instance an Emitter for its use
     signal = QtCore.Signal(object)
+
 
 class Worker(QtCore.QRunnable):
     """
@@ -60,6 +64,7 @@ class Worker(QtCore.QRunnable):
     :param args: list of arguments to be forwarded to the function when run.
     :param kwargs: dictionary of keyword arguments to be forwarded to the function when run.
     """
+
     def __init__(self, function, args=None, kwargs=None):
         self.function = function
         self.args = args if args is not None else []
@@ -80,7 +85,7 @@ class Worker(QtCore.QRunnable):
             r = self.function(*self.args, **self.kwargs)
             self.returned.emit(r)
         finally:
-            self.done=True
+            self.done = True
 
 
 class LiveWorker(Worker):
@@ -93,7 +98,8 @@ class LiveWorker(Worker):
     :param args: list of arguments to be forwarded to the function when run.
     :param kwargs: dictionary of keyword arguments to be forwarded to the function when run.
     """
-    def __init__(self, function, sleep=.1, args=None, kwargs=None):
+
+    def __init__(self, function, sleep=0.1, args=None, kwargs=None):
         self.stopping = False
         self.sleep = sleep
         super().__init__(function, args, kwargs)
@@ -136,9 +142,11 @@ class PuzzleTimer(QtWidgets.QWidget):
     :param args: list of arguments to be forwarded to the function when run.
     :param kwargs: dictionary of keyword arguments to be forwarded to the function when run.
     """
+
     #: A Qt signal emitted each time the associated LiveWorker returns, passes the returned value to the connected Slot.
     returned = QtCore.Signal(object)
-    def __init__(self, name, puzzle, function, sleep=.1, args=None, kwargs=None):
+
+    def __init__(self, name, puzzle, function, sleep=0.1, args=None, kwargs=None):
         self.name = name
         self.puzzle = puzzle
         self.function = function
@@ -150,7 +158,7 @@ class PuzzleTimer(QtWidgets.QWidget):
         super().__init__()
 
         layout = QtWidgets.QGridLayout()
-        layout.setContentsMargins(0,0,0,0)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
         self.input = QtWidgets.QCheckBox(self.name)
@@ -171,7 +179,7 @@ class PuzzleTimer(QtWidgets.QWidget):
     def stop(self):
         """
         Ask the PuzzleTimer to stop.
-        
+
         This will only take effect once the current execution of the function is over,
         see :func:`puzzlepiece.threads.LiveWorker.stop`.
         """
@@ -185,7 +193,7 @@ class PuzzleTimer(QtWidgets.QWidget):
         even if it's already running.
         """
         return self._sleep
-    
+
     @sleep.setter
     def sleep(self, value):
         if self.worker is not None:

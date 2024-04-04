@@ -1,6 +1,7 @@
 import puzzlepiece as pzp
 import random
 
+
 class Piece(pzp.Piece):
     # We define a Piece object to contain the random number generator
 
@@ -17,15 +18,16 @@ class Piece(pzp.Piece):
         @pzp.param.spinbox(self, "seed", 0)
         def seed(self, value):
             random.seed(value)
-        
+
         # Some params have a 'getter' function, which returns a value, like a powermeter's reading
         # In that case we make the function (which returns a value) and decorate it with
         # a readout-param-defining decorator
         @pzp.param.readout(self, "number")
         def random_number(self):
-            return random.randint(self.params['min'].get_value(),
-                                  self.params['max'].get_value())
-     
+            return random.randint(
+                self.params["min"].get_value(), self.params["max"].get_value()
+            )
+
     # We give it 'actions' within this function (these will appear as buttons)
     def define_actions(self):
         # Sometimes an action is needed, like homing a moving stage
@@ -33,5 +35,7 @@ class Piece(pzp.Piece):
         # an action-defining decorator
         @pzp.action.define(self, "Dialog")
         def print_something(self):
-            pzp.parse.run('prompt:In a range between {random:min} and {random:max}, your number is {random:number}',
-                          self.puzzle)
+            pzp.parse.run(
+                "prompt:In a range between {random:min} and {random:max}, your number is {random:number}",
+                self.puzzle,
+            )

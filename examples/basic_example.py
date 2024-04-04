@@ -1,6 +1,7 @@
 import puzzlepiece as pzp
 from puzzlepiece.pieces import random_number, plotter, scan_value, script
 
+
 def main():
     # Define the containing app
     app = pzp.QApp([])
@@ -27,6 +28,7 @@ set:scan_value:finish:10
     # Show the app
     puzzle.show()
     app.exec()
+
 
 if __name__ == "__main__":
     main()

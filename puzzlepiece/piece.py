@@ -2,6 +2,7 @@ from pyqtgraph.Qt import QtWidgets
 from functools import wraps
 import math
 
+
 class Piece(QtWidgets.QGroupBox):
     """
     A single `Piece` object is an unit of automation - an object that is meant to represent a single
@@ -14,6 +15,7 @@ class Piece(QtWidgets.QGroupBox):
     :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
                               if True.
     """
+
     def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -31,7 +33,7 @@ class Piece(QtWidgets.QGroupBox):
 
         if not self.puzzle.debug:
             self.setup()
-        
+
         self.define_params()
         self.define_readouts()
         self.define_actions()
@@ -66,7 +68,7 @@ class Piece(QtWidgets.QGroupBox):
         visible_params = [key for key in self.params if self.params[key].visible]
         numrows = math.ceil(len(visible_params) / wrap)
         for i, key in enumerate(visible_params):
-            layout.addWidget(self.params[key], i%numrows, i//numrows)
+            layout.addWidget(self.params[key], i % numrows, i // numrows)
         return layout
 
     def action_layout(self, wrap=2):
@@ -81,7 +83,7 @@ class Piece(QtWidgets.QGroupBox):
         for i, key in enumerate(visible_actions):
             button = QtWidgets.QPushButton(key)
             button.clicked.connect(lambda x=False, _key=key: self.actions[_key]())
-            layout.addWidget(button, i//wrap, i%wrap)
+            layout.addWidget(button, i // wrap, i % wrap)
         return layout
 
     def custom_layout(self):
@@ -199,8 +201,8 @@ def ensurer(ensure_function):
         @puzzlepiece.piece.ensurer
         def _ensure_connected(self):
             if not self.params['connected'].get_value():
-                raise Exception('Laser not connected') 
-    
+                raise Exception('Laser not connected')
+
     This can then be used when defining a param (below the param-defining decorator)::
 
         @puzzlepiece.param.spinbox(self, 'power', 0.)
@@ -223,22 +225,24 @@ def ensurer(ensure_function):
         if self._ensure_connected(capture_exception=True):
             print("laser is connected!")
     """
+
     # Decorating a class method with ensure makes it a decorator.
-    # Here we create this decorator and return it. 
+    # Here we create this decorator and return it.
     @wraps(ensure_function)
     def ensure_decorator(self, main_function=None, capture_exception=False):
         if main_function is not None:
             # This means ensure_decorator was used as a decorator, and
             # main_function is the function being decorated. We therefore
-            # wrap it with the ensuring functionality and return it 
+            # wrap it with the ensuring functionality and return it
             @wraps(main_function)
             def wrapped_main(self, *args, **kwargs):
                 ensure_function(self)
                 return main_function(self, *args, **kwargs)
+
             return wrapped_main
         else:
             # If main_function is None, ensure_decorator has been called
-            # directly instead of being used as a decorator, so we 
+            # directly instead of being used as a decorator, so we
             # just execute ensure_function
             if capture_exception:
                 try:
@@ -248,20 +252,24 @@ def ensurer(ensure_function):
                 return True
             else:
                 ensure_function(self)
+
     return ensure_decorator
+
 
 class _QDialog(QtWidgets.QDialog):
     """
     A variant of the QDialog specifically for popups, handles closing them
     with a custom function.
     """
+
     def __init__(self, parent, popup, *args, **kwargs):
         self.popup = popup
         super().__init__(parent, *args, **kwargs)
-    
+
     def closeEvent(self, event):
         self.popup.handle_close()
         super().closeEvent(event)
+
 
 class Popup(Piece):
     """
@@ -273,7 +281,7 @@ class Popup(Piece):
 
     A Popup can be created and displayed by calling :func:`puzzlepiece.piece.Piece.open_popup`.
 
-    A Popup is attached to a specific Piece and knows it through its 
+    A Popup is attached to a specific Piece and knows it through its
     :attr:`~puzzlepiece.piece.Popup.parent_piece` attribute, but it can also access other
     Pieces through the Puzzle, which it knows through its :attr:`~puzzlepiece.piece.Piece.puzzle`
     attribute.
@@ -287,10 +295,11 @@ class Popup(Piece):
     :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
                               if True.
     """
+
     def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
         self._parent_piece = parent_piece
         super().__init__(puzzle, custom_horizontal, *args, **kwargs)
-        self.layout.setContentsMargins(0,0,0,0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
 
     @property
     def parent_piece(self):
@@ -299,7 +308,7 @@ class Popup(Piece):
         the one that created it through :func:`puzzlepiece.piece.Piece.open_popup`.
         """
         return self._parent_piece
-    
+
     def handle_close(self):
         """
         Called when the Popup is closed. Override to perform actions when the user

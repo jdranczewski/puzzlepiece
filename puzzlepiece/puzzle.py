@@ -13,8 +13,9 @@ class Puzzle(QtWidgets.QWidget):
     :param name: A name for the window.
     :param debug: Sets the Puzzle.debug property, if True the app should launch in debug mode and Pieces
         shouldn't communicate with hardware.
-    :type debug: bool 
+    :type debug: bool
     """
+
     def __init__(self, app=None, name="Puzzle", debug=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pieces can handle the debug flag as they wish
@@ -42,7 +43,7 @@ class Puzzle(QtWidgets.QWidget):
             shell = get_ipython()
             # _orig_sys_module_state stores the original IPKernelApp excepthook,
             # irrespective of possible modifications in other cells
-            self._old_excepthook = shell._orig_sys_module_state['excepthook']
+            self._old_excepthook = shell._orig_sys_module_state["excepthook"]
 
             # The following hack allows us to handle exceptions through the Puzzle in IPython.
             # Normally when a cell is executed in an IPython InteractiveShell,
@@ -50,16 +51,17 @@ class Puzzle(QtWidgets.QWidget):
             # to sys.excepthook after the cell run finishes. Any changes we make to
             # sys.excepthook in here directly will thus be overwritten as soon as the
             # cell that defines the Puzzle finishes running.
-                
+
             # Instead, we schedule set_excepthook on a QTimer, meaning that it will
             # execute in the Qt loop rather than in a cell, so it can modify
             # sys.excepthook without risk of the changes being immediately overwritten,
-                
+
             # For bonus points, we could set _old_excepthook to shell.excepthook,
             # which would result in all tracebacks appearing in the Notebook rather
             # than the console, but I think that is not desireable.
             def set_excepthook():
                 sys.excepthook = self._excepthook
+
             QtCore.QTimer.singleShot(0, set_excepthook)
         except NameError:
             # In normal Python (not IPython) this is comparatively easy.
@@ -78,14 +80,14 @@ class Puzzle(QtWidgets.QWidget):
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
         """
         return self._pieces
-    
+
     @property
     def globals(self):
         """
         A dictionary, can be used for API modules that need to be shared by multiple Pieces.
         """
         return self._globals
-    
+
     @property
     def debug(self):
         """
@@ -112,7 +114,7 @@ class Puzzle(QtWidgets.QWidget):
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
         self.register_piece(name, piece)
-    
+
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
         Adds a tabbed :class:`~puzzlepiece.puzzle.Folder` to the grid layout, and returns it.
@@ -150,12 +152,13 @@ class Puzzle(QtWidgets.QWidget):
         self.app.processEvents()
 
     _shutdown_threads = QtCore.Signal()
+
     def run_worker(self, worker):
         """
         Add a Worker to the Puzzle's Threadpool and runs it. See :class:`puzzlepiece.threads`
         for more details on how to set up a Worker.
         """
-        if hasattr(worker, 'stop'):
+        if hasattr(worker, "stop"):
             # This signal is emitted when the application is shutting down,
             # so we're telling the LiveWorker to stop
             self._shutdown_threads.connect(worker.stop)
@@ -173,7 +176,7 @@ class Puzzle(QtWidgets.QWidget):
             self.custom_excepthook(exctype, value, traceback)
 
             box = QtWidgets.QMessageBox()
-            box.setText(str(value)+"\n\nCheck console for details.")
+            box.setText(str(value) + "\n\nCheck console for details.")
             box.exec()
 
     def custom_excepthook(self, exctype, value, traceback):
@@ -185,50 +188,61 @@ class Puzzle(QtWidgets.QWidget):
         pass
 
     # Convenience methods
-    
+
     def _docs(self):
         dialog = QtWidgets.QDialog(self)
         layout = QtWidgets.QVBoxLayout()
         tree = QtWidgets.QTreeWidget()
-        tree.setHeaderLabels(('pieces', 'get?', 'set?'))
+        tree.setHeaderLabels(("pieces", "get?", "set?"))
 
         def copy_item(item):
-            if hasattr(item, 'puzzlepiece_descriptor'):
+            if hasattr(item, "puzzlepiece_descriptor"):
                 self.app.clipboard().setText(item.puzzlepiece_descriptor)
+
         tree.itemDoubleClicked.connect(copy_item)
 
         for piece_name in self.pieces:
             piece_item = QtWidgets.QTreeWidgetItem(tree, (piece_name,))
 
             # First, params
-            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ('params',))
+            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ("params",))
             for param_name in self.pieces[piece_name].params:
                 param = self.pieces[piece_name].params[param_name]
-                G = '⟳' if param._getter is not None else ''
-                S = '✓' if param._setter is not None else ''
+                G = "⟳" if param._getter is not None else ""
+                S = "✓" if param._setter is not None else ""
                 param_item = QtWidgets.QTreeWidgetItem(tree_item, (param_name, G, S))
-                param_item.puzzlepiece_descriptor = "{}:{}".format(piece_name, param_name)
+                param_item.puzzlepiece_descriptor = "{}:{}".format(
+                    piece_name, param_name
+                )
 
             # Then, actions
-            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ('actions',))
+            tree_item = QtWidgets.QTreeWidgetItem(piece_item, ("actions",))
             for action_name in self.pieces[piece_name].actions:
                 action = self.pieces[piece_name].actions[action_name]
-                action_item = QtWidgets.QTreeWidgetItem(tree_item, (action_name, ))
-                action_item.puzzlepiece_descriptor = "{}:{}".format(piece_name, action_name)
+                action_item = QtWidgets.QTreeWidgetItem(tree_item, (action_name,))
+                action_item.puzzlepiece_descriptor = "{}:{}".format(
+                    piece_name, action_name
+                )
 
                 button = QtWidgets.QToolButton()
-                icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_MediaPlay)
+                icon = self.style().standardIcon(
+                    QtWidgets.QStyle.StandardPixmap.SP_MediaPlay
+                )
                 button.setIcon(icon)
                 button.clicked.connect(lambda x=False, action=action: action())
                 tree.setItemWidget(action_item, 1, button)
 
         for i in range(0, 3):
-            tree.header().setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+            tree.header().setSectionResizeMode(
+                i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+            )
 
         label = QtWidgets.QLabel()
-        label.setText("Double-click on any row to copy the param/action identifier for use in scripts.")
+        label.setText(
+            "Double-click on any row to copy the param/action identifier for use in scripts."
+        )
         label.setWordWrap(True)
-        
+
         layout.addWidget(tree)
         layout.addWidget(label)
 
@@ -242,7 +256,9 @@ class Puzzle(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
 
         label = QtWidgets.QLabel()
-        label.setText("The script below sets all currently params that don't have setters or getters to the current values.")
+        label.setText(
+            "The script below sets all currently params that don't have setters or getters to the current values."
+        )
         label.setWordWrap(True)
         layout.addWidget(label)
 
@@ -259,10 +275,12 @@ class Puzzle(QtWidgets.QWidget):
         layout.addWidget(text_box)
 
         button = QtWidgets.QPushButton("Save")
+
         def __save_export():
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
-            with open(fname, 'w') as f:
+            with open(fname, "w") as f:
                 f.write(text_box.toPlainText())
+
         button.clicked.connect(__save_export)
         layout.addWidget(button)
 
@@ -283,13 +301,9 @@ class Puzzle(QtWidgets.QWidget):
             (
                 QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation,
                 QtWidgets.QStyle.StandardPixmap.SP_DialogSaveButton,
-                QtWidgets.QStyle.StandardPixmap.SP_BrowserStop
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserStop,
             ),
-            (
-                "Tree (F1)",
-                "Export (F2)",
-                "STOP (F3)"
-            )
+            ("Tree (F1)", "Export (F2)", "STOP (F3)"),
         ):
             button = QtWidgets.QPushButton(text)
             icon = self.style().standardIcon(icon)
@@ -301,10 +315,10 @@ class Puzzle(QtWidgets.QWidget):
 
     def __getitem__(self, name):
         return self.pieces[name]
-    
+
     def _ipython_key_completions_(self):
         return self.pieces.keys()
-    
+
     def run(self, text):
         """
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
@@ -320,7 +334,7 @@ class Puzzle(QtWidgets.QWidget):
         :rtype: list
         """
         return [param.get_value() for param in parse.parse_params(text, self)]
-    
+
     def record_values(self, text, dictionary=None):
         """
         Get the values from multiple params and record them in a dictionary.
@@ -333,7 +347,7 @@ class Puzzle(QtWidgets.QWidget):
         :rtype: dict
         """
         params = parse.parse_params(text, self)
-        names = text.split(', ')
+        names = text.split(", ")
 
         if dictionary is None:
             dictionary = {}
@@ -344,7 +358,7 @@ class Puzzle(QtWidgets.QWidget):
         return dictionary
 
     # Qt overrides
-        
+
     def keyPressEvent(self, event):
         """
         Pass down keypress events to child Pieces and Folders.
@@ -369,7 +383,7 @@ class Puzzle(QtWidgets.QWidget):
         :meta private:
         """
         self._shutdown_threads.emit()
-        
+
         if not self.debug:
             for piece_name in self.pieces:
                 self.pieces[piece_name].handle_close(event)
@@ -393,6 +407,7 @@ class Folder(QtWidgets.QTabWidget):
 
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
+
     def __init__(self, puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
@@ -448,9 +463,10 @@ class Grid(QtWidgets.QWidget):
     """
     A grid layout for :class:`~puzzlepiece.piece.Piece` objects. For when you need multiple Pieces
     within a single :class:`~puzzlepiece.puzzle.Folder` tab.
-    
+
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
+
     def __init__(self, puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
@@ -503,6 +519,7 @@ class PieceDict:
     A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
     a Piece tries to use another Piece that hasn't been registered.
     """
+
     def __init__(self):
         self._dict = {}
 
@@ -514,18 +531,20 @@ class PieceDict:
     def __iter__(self):
         for key in self._dict:
             yield key
-    
+
     def __getitem__(self, key):
         if key not in self._dict:
-            raise KeyError("A Piece with id '{}' is required, but doesn't exist".format(key))
+            raise KeyError(
+                "A Piece with id '{}' is required, but doesn't exist".format(key)
+            )
         return self._dict[key]
-    
+
     def __contains__(self, item):
         return item in self._dict
-    
+
     def keys(self):
         return self._dict.keys()
-    
+
     def __repr__(self):
         return "PieceDict({})".format(", ".join(self._dict.keys()))
 
@@ -541,6 +560,7 @@ class Globals:
     using a given variable, so that the API can be loaded once and then unloaded once
     all the Pieces are done with it.
     """
+
     def __init__(self):
         self._dict = {}
         self._counts = {}
@@ -570,7 +590,7 @@ class Globals:
         else:
             self._counts[name] += 1
             return True
-        
+
     def release(self, name):
         """
         Indicate that a Piece is done using the variable with a given name.
@@ -594,31 +614,33 @@ class Globals:
         if name not in self._dict:
             raise KeyError(f"No global variable with id '{name}' to release")
         if name not in self._counts:
-            raise KeyError(f"Cannot release '{name}' since it hasn't been registered with 'require'")
+            raise KeyError(
+                f"Cannot release '{name}' since it hasn't been registered with 'require'"
+            )
         self._counts[name] -= 1
         return self._counts[name] < 1
 
     def __setitem__(self, key, value):
         self._dict[key] = value
-    
+
     def __getitem__(self, key):
         if key not in self._dict:
             raise KeyError("No global variable with id '{}'".format(key))
         return self._dict[key]
-    
+
     def __delitem__(self, key):
         del self._dict[key]
         if key in self._counts:
             del self._counts[key]
-    
+
     def __contains__(self, item):
         return item in self._dict
-    
+
     def keys(self):
         return self._dict.keys()
-    
+
     def __repr__(self):
-        return "Globals({})".format(", ".join(self._dict.keys()))   
+        return "Globals({})".format(", ".join(self._dict.keys()))
 
 
 class PretendPuzzle:
@@ -627,6 +649,7 @@ class PretendPuzzle:
     when creating a :class:`puzzlepiece.puzzle.Piece`. Its `debug` attribute is
     always True.
     """
+
     debug = True
 
     def process_events(self):

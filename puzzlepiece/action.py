@@ -1,6 +1,7 @@
 from pyqtgraph.Qt import QtCore
 from functools import wraps
 
+
 class Action(QtCore.QObject):
     """
     An action is a function that a :class:`~puzzlepiece.piece.Piece` object can call.
@@ -19,6 +20,7 @@ class Action(QtCore.QObject):
     :param shortcut: A keyboard shortcut for this action, works only when the Piece is visible.
     :param visible: Bool flag, whether a button for the action is generated in the GUI.
     """
+
     #: A Qt signal emitted when the action is executed.
     called = QtCore.Signal()
 
@@ -44,6 +46,7 @@ class Action(QtCore.QObject):
         """
         return self._visible
 
+
 def define(piece, name, shortcut=None, visible=True):
     """
     A decorator generator for registering a :class:`~puzzlepiece.action.Action` in a Piece's
@@ -62,13 +65,16 @@ def define(piece, name, shortcut=None, visible=True):
       Example: ``QtCore.Qt.Key.Key_F1``
     :param visible: bool flag, determined if a GUI button will be shown for this param.
     """
+
     def decorator(action):
         @wraps(action)
         def wrapper(*args, **kwargs):
             return action(piece, *args, **kwargs)
+
         action_object = Action(wrapper, piece, shortcut, visible)
         piece.actions[name] = action_object
         if shortcut:
             piece.shortcuts[shortcut] = action_object
         return action_object
+
     return decorator
