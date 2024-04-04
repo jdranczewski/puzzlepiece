@@ -1,5 +1,4 @@
 import puzzlepiece as pzp
-from pyqtgraph.Qt import QtWidgets
 
 class Piece(pzp.Piece):
     def define_params(self):

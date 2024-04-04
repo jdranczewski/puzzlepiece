@@ -243,7 +243,7 @@ def ensurer(ensure_function):
             if capture_exception:
                 try:
                     ensure_function(self)
-                except:
+                except Exception:
                     return False
                 return True
             else:

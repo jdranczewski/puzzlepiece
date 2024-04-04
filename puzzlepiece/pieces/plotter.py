@@ -1,5 +1,5 @@
 import puzzlepiece as pzp
-from pyqtgraph.Qt import QtCore, QtWidgets
+from pyqtgraph.Qt import QtWidgets
 import pyqtgraph as pg
 import time
 import numpy as np

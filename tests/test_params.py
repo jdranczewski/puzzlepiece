@@ -11,7 +11,7 @@ class TParamPiece(pzp.Piece):
             self._setter_param_value = value
 
         @pzp.param.base_param(self, 'setter_return_param', 0)
-        def setter_param(self, value):
+        def setter_return_param(self, value):
             return value + 1
 
         @pzp.param.readout(self, 'getter_param', _type=int)

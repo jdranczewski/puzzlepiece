@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtCore, QtWidgets
+from pyqtgraph.Qt import QtCore
 from functools import wraps
 
 class Action(QtCore.QObject):
