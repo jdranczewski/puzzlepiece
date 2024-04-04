@@ -15,11 +15,11 @@ class Puzzle(QtWidgets.QWidget):
         shouldn't communicate with hardware.
     :type debug: bool 
     """
-    def __init__(self, app, name, debug=True, *args, **kwargs):
+    def __init__(self, app=None, name="Puzzle", debug=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
-        self.app = app
+        self.app = app or QtWidgets.QApplication.instance()
         self.setWindowTitle(name)
         self._pieces = PieceDict()
         self._globals = Globals()
@@ -618,4 +618,19 @@ class Globals:
         return self._dict.keys()
     
     def __repr__(self):
-        return "Globals({})".format(", ".join(self._dict.keys()))     
+        return "Globals({})".format(", ".join(self._dict.keys()))   
+
+
+class PretendPuzzle:
+    """
+    A placeholder object used if no :class:`~puzzlepiece.puzzle.Puzzle` is provided
+    when creating a :class:`puzzlepiece.puzzle.Piece`. Its `debug` attribute is
+    always True.
+    """
+    debug = True
+
+    def process_events(self):
+        """
+        Like :func:`puzzlepiece.puzzle.Puzzle.process_events()`.
+        """
+        QtWidgets.QApplication.instance().processEvents()

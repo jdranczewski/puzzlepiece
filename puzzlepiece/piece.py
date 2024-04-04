@@ -14,10 +14,10 @@ class Piece(QtWidgets.QGroupBox):
     :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
                               if True.
     """
-    def __init__(self, puzzle, custom_horizontal=False, *args, **kwargs):
+    def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle
+        self.puzzle = puzzle or puzzle.PretendPuzzle()
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
