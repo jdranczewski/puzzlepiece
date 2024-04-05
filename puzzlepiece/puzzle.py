@@ -60,7 +60,18 @@ class Puzzle(QtWidgets.QWidget):
             # which would result in all tracebacks appearing in the Notebook rather
             # than the console, but I think that is not desireable.
             def set_excepthook():
-                sys.excepthook = self._excepthook
+                # Make sure we're out of the cell execution context
+                if (
+                    set_excepthook.counter < 100
+                    and sys.excepthook is not self._old_excepthook
+                ):
+                    # if not, we wait a little bit more
+                    set_excepthook.counter += 1
+                    QtCore.QTimer.singleShot(500, set_excepthook)
+                else:
+                    sys.excepthook = self._excepthook
+
+            set_excepthook.counter = 0
 
             QtCore.QTimer.singleShot(0, set_excepthook)
         except NameError:
