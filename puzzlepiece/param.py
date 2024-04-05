@@ -319,11 +319,13 @@ class ParamInt(BaseParam):
         setter,
         getter=None,
         visible=True,
+        v_step=1,
         *args,
         **kwargs,
     ):
         self._v_min = v_min
         self._v_max = v_max
+        self._v_step = v_step
         super().__init__(name, value, setter, getter, visible, *args, **kwargs)
 
     def _make_input(self, value=None, connect=None):
@@ -331,6 +333,7 @@ class ParamInt(BaseParam):
         input = QtWidgets.QSpinBox()
         input.setMinimum(self._v_min)
         input.setMaximum(self._v_max)
+        input.setSingleStep(self._v_step)
         input.setGroupSeparatorShown(True)
         if value is not None:
             input.setValue(value)
@@ -363,6 +366,7 @@ class ParamFloat(ParamInt):
         input.setGroupSeparatorShown(True)
         input.setMinimum(self._v_min)
         input.setMaximum(self._v_max)
+        input.setSingleStep(self._v_step)
         if value is not None:
             input.setValue(value)
         if connect is not None:
@@ -475,7 +479,6 @@ class ParamArray(BaseParam):
         setter=None,
         getter=None,
         visible=True,
-        format="{}",
         _type=None,
         *args,
         **kwargs,
@@ -483,7 +486,7 @@ class ParamArray(BaseParam):
         self._indicator_state = True
         self._partial_accessor = _PartialAccessor(self)
         super().__init__(
-            name, value, setter, getter, visible, format, _type, *args, **kwargs
+            name, value, setter, getter, visible, _type=_type, *args, **kwargs
         )
 
     @property
@@ -784,7 +787,7 @@ def readout(piece, name, visible=True, format="{}", _type=None):
     return decorator
 
 
-def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True):
+def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True, v_step=1):
     """
     A decorator generator for registering a :class:`~puzzlepiece.param.ParamInt` or :class:`~puzzlepiece.param.ParamFloat`
     in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
@@ -797,6 +800,7 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True):
 
     :param v_min: The minimum value accepted by the spinbox.
     :param v_max: The maximum value accepted by the spinbox.
+    :param v_step: The step change when spinbox buttons are used.
     """
 
     def decorator(setter):
@@ -811,10 +815,11 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True):
                 setter=wrapper,
                 getter=None,
                 visible=visible,
+                v_step=int(v_step),
             )
         else:
             piece.params[name] = ParamFloat(
-                name, value, v_min, v_max, wrapper, None, visible
+                name, value, v_min, v_max, wrapper, None, visible, v_step
             )
         return piece.params[name]
 
