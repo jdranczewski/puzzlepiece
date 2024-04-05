@@ -75,8 +75,8 @@ class BaseParam(QtWidgets.QWidget):
         self.input, make_set_button = self._make_input(
             value, self._value_change_handler
         )
-        if self._setter is None:
-            self._value = value
+        if self._setter is None and value is not None:
+            self._value = self._type(value)
         if self._value is None:
             # Highlight that the setter or getter haven't been called yet
             self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
