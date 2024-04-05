@@ -4,7 +4,9 @@ import puzzlepiece as pzp
 
 
 class DataGrid(QtWidgets.QWidget):
+    #: A Qt signal emitted when a row is added or removed.
     rows_changed = QtCore.Signal()
+    #: A Qt signal emitted when any data in the DataGrid changes (including when rows are added/removed).
     data_changed = QtCore.Signal()
 
     def __init__(self, row_class, puzzle=None):
