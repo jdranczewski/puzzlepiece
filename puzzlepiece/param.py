@@ -373,28 +373,67 @@ class ParamFloat(ParamInt):
             input.valueChanged.connect(connect)
         return input, True
 
+
+class _Slider(QtWidgets.QWidget):
+    def __init__(self, value, v_min, v_max, v_step, format="{:.2f}"):
+        self._v_min = v_min
+        self._v_max = v_max
+        self._v_step = v_step
+        self._format = format
+        super().__init__()
+
+        layout = QtWidgets.QHBoxLayout()
+        self.setLayout(layout)
+
+        self.input = input = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        input.setMinimum(int(np.round(v_min / v_step)))
+        input.setMaximum(int(np.round(v_max / v_step)))
+        input.setTickPosition(input.TickPosition.TicksBelow)
+        layout.addWidget(input)
+        self.valueChanged = self.input.valueChanged
+        self.input.valueChanged.connect(self._set_label)
+
+        self.input_label = QtWidgets.QLabel()
+        layout.addWidget(self.input_label)
+
+        if value is not None:
+            input.setValue(int(np.round(value) / v_step))
+            self._set_label()
+
+    def _set_label(self):
+        value = self.input.value() * self._v_step
+        self.input_label.setText(self._format.format(value))
+
+    def setValue(self, value):
+        self.input.setValue(int(np.round(value / self._v_step)))
+
+    def value(self):
+        return self.input.value() * self._v_step
+
+
 class ParamSlider(ParamFloat):
     """
-    A param with a basic float slider. See the :func:`~puzzlepiece.param.slider` decorator below
+    A param with a slider, float or int depending on provided value and step.
+    See the :func:`~puzzlepiece.param.slider` decorator below
     for how to use this in your Piece.
     """
 
     def _make_input(self, value=None, connect=None):
-        input = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
-        input.setMinimum(int(np.round(self._v_min / self._v_step)))
-        input.setMaximum(int(np.round(self._v_max / self._v_step)))
-        input.setTickPosition(input.TickPosition.TicksBelow)
+        if (
+            isinstance(value, int)
+            and isinstance(self._v_min, int)
+            and isinstance(self._v_min, int)
+            and isinstance(self._v_step, int)
+        ):
+            self._type = int
+
+        format = "{:.2f}" if self._type is float else "{}"
+        input = _Slider(value, self._v_min, self._v_max, self._v_step, format)
         if value is not None:
-            input.setValue(int(np.round(value) / self._v_step))
+            input.setValue(value)
         if connect is not None:
             input.valueChanged.connect(connect)
         return input, True
-
-    def _input_get_value(self):
-        return super()._input_get_value() * self._v_step
-
-    def _input_set_value(self, value):
-        return super()._input_set_value(int(np.round(value) / self._v_step))
 
 
 class ParamText(BaseParam):
@@ -854,7 +893,8 @@ def slider(piece, name, value, v_min=0, v_max=1, visible=True, v_step=0.05):
     A decorator generator for registering a :class:`~puzzlepiece.param.ParamSlider`
     in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
 
-    This will display a slider with the specified properties.
+    This will display a slider with the specified properties and a label.
+    It will be an int or a float slider depending on the type of the values provided here.
 
     See :func:`~puzzlepiece.param.base_param` for more details.
     """
