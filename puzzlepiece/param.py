@@ -373,6 +373,29 @@ class ParamFloat(ParamInt):
             input.valueChanged.connect(connect)
         return input, True
 
+class ParamSlider(ParamFloat):
+    """
+    A param with a basic float slider. See the :func:`~puzzlepiece.param.slider` decorator below
+    for how to use this in your Piece.
+    """
+
+    def _make_input(self, value=None, connect=None):
+        input = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        input.setMinimum(int(np.round(self._v_min / self._v_step)))
+        input.setMaximum(int(np.round(self._v_max / self._v_step)))
+        input.setTickPosition(input.TickPosition.TicksBelow)
+        if value is not None:
+            input.setValue(int(np.round(value) / self._v_step))
+        if connect is not None:
+            input.valueChanged.connect(connect)
+        return input, True
+
+    def _input_get_value(self):
+        return super()._input_get_value() * self._v_step
+
+    def _input_set_value(self, value):
+        return super()._input_set_value(int(np.round(value) / self._v_step))
+
 
 class ParamText(BaseParam):
     """
@@ -821,6 +844,26 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True, v_step=1):
             piece.params[name] = ParamFloat(
                 name, value, v_min, v_max, wrapper, None, visible, v_step
             )
+        return piece.params[name]
+
+    return decorator
+
+
+def slider(piece, name, value, v_min=0, v_max=1, visible=True, v_step=0.05):
+    """
+    A decorator generator for registering a :class:`~puzzlepiece.param.ParamSlider`
+    in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
+
+    This will display a slider with the specified properties.
+
+    See :func:`~puzzlepiece.param.base_param` for more details.
+    """
+
+    def decorator(setter):
+        wrapper = wrap_setter(piece, setter)
+        piece.params[name] = ParamSlider(
+            name, value, v_min, v_max, wrapper, None, visible, v_step
+        )
         return piece.params[name]
 
     return decorator
