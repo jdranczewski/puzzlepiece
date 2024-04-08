@@ -102,6 +102,8 @@ class Piece(QtWidgets.QGroupBox):
 
     def define_readouts(self):
         """
+        Mostly deprecated.
+
         Override to define readouts (params with getters). This is no different that defining them in
         :func:`~puzzlepiece.piece.Piece.define_params`, but may be a convenient way to organise the
         definitions within your custom class.
