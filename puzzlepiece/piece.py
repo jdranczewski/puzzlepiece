@@ -147,6 +147,7 @@ class Piece(QtWidgets.QGroupBox):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+        self.puzzle._close_popups.connect(dialog.accept)
 
         return popup
 
@@ -274,6 +275,7 @@ class _QDialog(QtWidgets.QDialog):
 
     def closeEvent(self, event):
         self.popup.handle_close()
+        self.popup.parent_piece.puzzle._close_popups.disconnect(self.accept)
         super().closeEvent(event)
 
 

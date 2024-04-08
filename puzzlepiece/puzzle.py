@@ -388,6 +388,8 @@ class Puzzle(QtWidgets.QWidget):
         for widget in self._toplevel:
             widget.handle_shortcut(event)
 
+    _close_popups = QtCore.Signal()
+
     def closeEvent(self, event):
         """
         Tell the Pieces the window is closing, so they can for example disconnect hardware.
@@ -396,6 +398,7 @@ class Puzzle(QtWidgets.QWidget):
         :meta private:
         """
         self._shutdown_threads.emit()
+        self._close_popups.emit()
 
         if not self.debug:
             for piece_name in self.pieces:
