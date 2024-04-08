@@ -23,7 +23,7 @@ class Piece(QtWidgets.QGroupBox):
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
-        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.BaseParam`)
+        #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.BaseParam`). You can also directly index the Piece object with the param name.
         self.params = {}
         # A reference to the param dictionary for backwards-compatibility
         self.readouts = self.params
@@ -183,6 +183,12 @@ class Piece(QtWidgets.QGroupBox):
         """
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
+
+    def __getitem__(self, name):
+        return self.params[name]
+
+    def _ipython_key_completions_(self):
+        return self.params.keys()
 
 
 def ensurer(ensure_function):

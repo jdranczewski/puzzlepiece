@@ -89,6 +89,8 @@ class Puzzle(QtWidgets.QWidget):
         """
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
+
+        You can also directly index the Puzzle object with the Piece name.
         """
         return self._pieces
 
