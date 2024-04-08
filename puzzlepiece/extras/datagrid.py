@@ -29,6 +29,13 @@ class DataGrid(QtWidgets.QWidget):
         self._slots = {}
         self.rows_changed.connect(self.data_changed.emit)
 
+    @property
+    def values(self):
+        """
+        The current values for all params in the rows (this does not invoke the getters).
+        """
+        return [{key: x[key].value for key in x.params} for x in self.rows]
+
     def add_row(self, **kwargs):
         item = QtWidgets.QTreeWidgetItem(self._tree, (str(len(self.rows)),))
         row = self._row_class(self, self.puzzle)
