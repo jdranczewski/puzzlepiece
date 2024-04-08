@@ -12,6 +12,9 @@ class DataGrid(QtWidgets.QWidget):
     This is a QWidget, co it can be added to your Piece's :func:`~puzzlepiece.piece.Piece.custom_layout`
     or used as a standalone Widget if you know what you're doing.
 
+    **This is not very performant, very large numbers of Rows should be avoided!** Consider using
+    Qt's QTableWidget instead.
+
     :param row_class: The :class:`~puzzlepiece.extras.datagrid.Row` class that will be used to construct Rows.
     :param puzzle: (optional) The parent :class:`~puzzlepiece.puzzle.Puzzle`.
     """
