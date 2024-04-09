@@ -14,6 +14,8 @@ class Puzzle(QtWidgets.QWidget):
     :param debug: Sets the Puzzle.debug property, if True the app should launch in debug mode and Pieces
         shouldn't communicate with hardware.
     :type debug: bool
+    :param bottom_buttons: Whether the bottom buttons of the Puzzle (Tree, Export, STOP) should be shown.
+    :type bottom_buttons: bool
     """
 
     def __init__(self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs):
