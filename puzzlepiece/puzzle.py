@@ -122,12 +122,15 @@ class Puzzle(QtWidgets.QWidget):
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
         :param column: Width in columns.
+        :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
         self.register_piece(name, piece)
+
+        return piece
 
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
@@ -438,6 +441,7 @@ class Folder(QtWidgets.QTabWidget):
         :param name: Identifying string for the Piece.
         :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
           be automatically instantiated).
+        :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
@@ -449,6 +453,8 @@ class Folder(QtWidgets.QTabWidget):
         # No title or border displayed when Piece in Folder
         piece.setTitle(None)
         piece.setStyleSheet("QGroupBox {border:0;}")
+
+        return piece
 
     def add_grid(self, name):
         """
@@ -503,6 +509,7 @@ class Grid(QtWidgets.QWidget):
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
         :param column: Width in columns.
+        :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
@@ -510,6 +517,8 @@ class Grid(QtWidgets.QWidget):
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
         piece.folder = self
+        
+        return piece
 
     def handle_shortcut(self, event):
         """
