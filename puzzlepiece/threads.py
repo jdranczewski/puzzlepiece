@@ -69,6 +69,7 @@ class Worker(QtCore.QRunnable):
         self.function = function
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
+        #: Bool flag, True when task finished.
         self.done = False
         self._emitter = _Emitter()
         #: A Qt signal emitted when the function returns, passes the returned value to the connected Slot.

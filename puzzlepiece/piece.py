@@ -2,6 +2,8 @@ from pyqtgraph.Qt import QtWidgets
 from functools import wraps
 import math
 
+from .puzzle import PretendPuzzle
+
 
 class Piece(QtWidgets.QGroupBox):
     """
@@ -19,7 +21,7 @@ class Piece(QtWidgets.QGroupBox):
     def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle or puzzle.PretendPuzzle()
+        self.puzzle = puzzle or PretendPuzzle()
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
