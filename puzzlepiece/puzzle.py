@@ -16,7 +16,7 @@ class Puzzle(QtWidgets.QWidget):
     :type debug: bool
     """
 
-    def __init__(self, app=None, name="Puzzle", debug=True, *args, **kwargs):
+    def __init__(self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
@@ -36,7 +36,8 @@ class Puzzle(QtWidgets.QWidget):
         self.layout = QtWidgets.QGridLayout()
         self.wrapper_layout.addLayout(self.layout, 0, 0)
 
-        self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
+        if bottom_buttons:
+            self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
 
         try:
             # If this doesn't raise a NameError, we're in IPython
