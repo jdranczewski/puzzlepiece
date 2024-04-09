@@ -2,6 +2,7 @@ from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
 import numpy as np
 
+
 class BaseParam(QtWidgets.QWidget):
     """
     A param object represents a gettable/settable value within a :class:`~puzzlepiece.piece.Piece`. This can be
@@ -33,7 +34,18 @@ class BaseParam(QtWidgets.QWidget):
     changed = QtCore.Signal()
     _type = None
 
-    def __init__(self, name, value, setter=None, getter=None, visible=True, format='{}', _type=None, *args, **kwargs):
+    def __init__(
+        self,
+        name,
+        value,
+        setter=None,
+        getter=None,
+        visible=True,
+        format="{}",
+        _type=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._setter = setter
         self._getter = getter
@@ -51,18 +63,20 @@ class BaseParam(QtWidgets.QWidget):
                 self._type = lambda x: x
 
         self._main_layout = layout = QtWidgets.QGridLayout()
-        layout.setContentsMargins(0,0,0,0)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
         # Give the param a label
         self.label = QtWidgets.QLabel()
-        self.label.setText(name+':')
+        self.label.setText(name + ":")
         layout.addWidget(self.label, 0, 0)
 
         # Give the param an input box
-        self.input, make_set_button = self._make_input(value, self._value_change_handler)
-        if self._setter is None:
-            self._value = value
+        self.input, make_set_button = self._make_input(
+            value, self._value_change_handler
+        )
+        if self._setter is None and value is not None:
+            self._value = self._type(value)
         if self._value is None:
             # Highlight that the setter or getter haven't been called yet
             self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
@@ -74,11 +88,13 @@ class BaseParam(QtWidgets.QWidget):
             self._make_get_button()
         if self._setter is not None and make_set_button:
             self._make_set_button()
-    
+
     def _make_set_button(self):
         self._set_button = QtWidgets.QToolButton()
         # Icon list: https://www.pythonguis.com/faq/built-in-qicons-pyqt/
-        icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton)
+        icon = self.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
+        )
         self._set_button.setIcon(icon)
         # Using a lambda as the clicked signal always passes False as the first argument
         self._set_button.clicked.connect(lambda x: self.set_value())
@@ -86,7 +102,9 @@ class BaseParam(QtWidgets.QWidget):
 
     def _make_get_button(self):
         self._get_button = QtWidgets.QToolButton()
-        icon = self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserReload)
+        icon = self.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_BrowserReload
+        )
         self._get_button.setIcon(icon)
         self._get_button.clicked.connect(lambda x: self.get_value())
         self._main_layout.addWidget(self._get_button, 0, 2)
@@ -98,7 +116,7 @@ class BaseParam(QtWidgets.QWidget):
         else:
             # If there's no setter, we call set_value to set the value from input
             self.set_value()
-    
+
     def set_value(self, value=None):
         """
         Set the value of the param. If a setter is registered, it will be called.
@@ -122,7 +140,7 @@ class BaseParam(QtWidgets.QWidget):
             # Otherwise push the given value to the input
             value = self._type(value)
             self._input_set_value(value)
-        
+
         if self._setter is not None:
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
@@ -167,33 +185,37 @@ class BaseParam(QtWidgets.QWidget):
             return new_value
         else:
             return self._value
-        
+
     def set_setter(self, piece):
         """
         Create a decorator to register a setter for this param. This would be used within
         :func:`puzzlepiece.piece.Piece.define_params` as ``@param.set_setter(self)`` decorating
         a function.
         """
+
         def decorator(setter):
             wrapper = wrap_setter(piece, setter)
             self._setter = wrapper
             self._make_set_button()
             return self
+
         return decorator
-        
+
     def set_getter(self, piece):
         """
         Create a decorator to register a getter for this param. This would be used within
         :func:`puzzlepiece.piece.Piece.define_params` as ``@param.set_getter(self)`` decorating
         a function.
         """
+
         def decorator(getter):
             wrapper = wrap_getter(piece, getter)
             self._getter = wrapper
             self._make_get_button()
             return self
+
         return decorator
-        
+
     @property
     def value(self):
         """
@@ -201,7 +223,7 @@ class BaseParam(QtWidgets.QWidget):
         The getter is not called when this property is accessed.
         """
         return self._value
-    
+
     def _make_input(self, value=None, connect=None):
         """
         Create an input box for the GUI display of this param. This should be overriden to implement
@@ -217,7 +239,7 @@ class BaseParam(QtWidgets.QWidget):
         if value is not None:
             input.setText(self._format.format(value))
         return input, True
-    
+
     def _input_set_value(self, value):
         """
         Set the value of the input box. This should be overriden to implement
@@ -234,7 +256,7 @@ class BaseParam(QtWidgets.QWidget):
         :meta public:
         """
         self.input.setText(self._format.format(value))
-    
+
     def _input_get_value(self):
         """
         Set the value of the input box. This should be overriden to implement
@@ -245,7 +267,7 @@ class BaseParam(QtWidgets.QWidget):
         :meta public:
         """
         return self._type(self.input.text())
-    
+
     @property
     def type(self):
         """
@@ -255,7 +277,7 @@ class BaseParam(QtWidgets.QWidget):
         will be of this type.
         """
         return self._type
-    
+
     @property
     def visible(self):
         """
@@ -269,7 +291,10 @@ class BaseParam(QtWidgets.QWidget):
 
         :meta private:
         """
-        if event.key() == QtCore.Qt.Key.Key_Enter or event.key() == QtCore.Qt.Key.Key_Return:
+        if (
+            event.key() == QtCore.Qt.Key.Key_Enter
+            or event.key() == QtCore.Qt.Key.Key_Return
+        ):
             self.set_value()
             # Move focus out of the input, so other keyboard shortcuts can be processed
             self.setFocus()
@@ -282,10 +307,25 @@ class ParamInt(BaseParam):
     A param with an integer input field. See the :func:`~puzzlepiece.param.spinbox` decorator below
     for how to use this in your Piece.
     """
+
     _type = int
-    def __init__(self, name, value, v_min, v_max, setter, getter=None, visible=True, *args, **kwargs):
+
+    def __init__(
+        self,
+        name,
+        value,
+        v_min,
+        v_max,
+        setter,
+        getter=None,
+        visible=True,
+        v_step=1,
+        *args,
+        **kwargs,
+    ):
         self._v_min = v_min
         self._v_max = v_max
+        self._v_step = v_step
         super().__init__(name, value, setter, getter, visible, *args, **kwargs)
 
     def _make_input(self, value=None, connect=None):
@@ -293,6 +333,7 @@ class ParamInt(BaseParam):
         input = QtWidgets.QSpinBox()
         input.setMinimum(self._v_min)
         input.setMaximum(self._v_max)
+        input.setSingleStep(self._v_step)
         input.setGroupSeparatorShown(True)
         if value is not None:
             input.setValue(value)
@@ -316,6 +357,7 @@ class ParamFloat(ParamInt):
     A param with a float input field. See the :func:`~puzzlepiece.param.spinbox` decorator below
     for how to use this in your Piece.
     """
+
     _type = float
 
     def _make_input(self, value=None, connect=None):
@@ -324,6 +366,69 @@ class ParamFloat(ParamInt):
         input.setGroupSeparatorShown(True)
         input.setMinimum(self._v_min)
         input.setMaximum(self._v_max)
+        input.setSingleStep(self._v_step)
+        if value is not None:
+            input.setValue(value)
+        if connect is not None:
+            input.valueChanged.connect(connect)
+        return input, True
+
+
+class _Slider(QtWidgets.QWidget):
+    def __init__(self, value, v_min, v_max, v_step, format="{:.2f}"):
+        self._v_min = v_min
+        self._v_max = v_max
+        self._v_step = v_step
+        self._format = format
+        super().__init__()
+
+        layout = QtWidgets.QHBoxLayout()
+        self.setLayout(layout)
+
+        self.input = input = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        input.setMinimum(int(np.round(v_min / v_step)))
+        input.setMaximum(int(np.round(v_max / v_step)))
+        input.setTickPosition(input.TickPosition.TicksBelow)
+        layout.addWidget(input)
+        self.valueChanged = self.input.valueChanged
+        self.input.valueChanged.connect(self._set_label)
+
+        self.input_label = QtWidgets.QLabel()
+        layout.addWidget(self.input_label)
+
+        if value is not None:
+            input.setValue(int(np.round(value) / v_step))
+            self._set_label()
+
+    def _set_label(self):
+        value = self.input.value() * self._v_step
+        self.input_label.setText(self._format.format(value))
+
+    def setValue(self, value):
+        self.input.setValue(int(np.round(value / self._v_step)))
+
+    def value(self):
+        return self.input.value() * self._v_step
+
+
+class ParamSlider(ParamFloat):
+    """
+    A param with a slider, float or int depending on provided value and step.
+    See the :func:`~puzzlepiece.param.slider` decorator below
+    for how to use this in your Piece.
+    """
+
+    def _make_input(self, value=None, connect=None):
+        if (
+            isinstance(value, int)
+            and isinstance(self._v_min, int)
+            and isinstance(self._v_min, int)
+            and isinstance(self._v_step, int)
+        ):
+            self._type = int
+
+        format = "{:.2f}" if self._type is float else "{}"
+        input = _Slider(value, self._v_min, self._v_max, self._v_step, format)
         if value is not None:
             input.setValue(value)
         if connect is not None:
@@ -336,6 +441,7 @@ class ParamText(BaseParam):
     A param with a text input field. See the :func:`~puzzlepiece.param.text` decorator below
     for how to use this in your Piece.
     """
+
     _type = str
 
     def _make_input(self, value=None, connect=None):
@@ -366,8 +472,9 @@ class ParamCheckbox(BaseParam):
     This param runs :func:`puzzlepiece.param.Param.set_value` automatically when the checkbox
     is pressed, so an additional setter button is not displayed.
     """
+
     _type = int
-    #TODO: handle exceptions better!
+    # TODO: handle exceptions better!
 
     def __init__(self, name, value, setter, getter=None, visible=True, *args, **kwargs):
         super().__init__(name, value, setter, getter, visible, *args, **kwargs)
@@ -392,7 +499,7 @@ class ParamCheckbox(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return int(self.input.isChecked())
-    
+
     def _click_handler(self, _):
         try:
             if self._connected_click_handler is not None:
@@ -402,7 +509,7 @@ class ParamCheckbox(BaseParam):
                 self.set_value()
         except Exception as e:
             # Flip back the checkbox if the click resulted in an error
-            self.input.setChecked(not(self.input.isChecked()))
+            self.input.setChecked(not (self.input.isChecked()))
             raise e
 
 
@@ -414,6 +521,7 @@ class _PartialAccessor:
         self.param._value.__setitem__(key, value)
         self.param.set_value()
 
+
 class ParamArray(BaseParam):
     """
     A param that stores a numpy array. There is no GUI input, the Param simply displays the
@@ -423,12 +531,25 @@ class ParamArray(BaseParam):
     (for example the array can be obtained from a hardware spectrometer), or treated as a variable
     and set using :func:`~puzzlepiece.param.BaseParam.set_value`.
     """
+
     _type = np.asarray
 
-    def __init__(self, name, value, setter=None, getter=None, visible=True, format='{}', _type=None, *args, **kwargs):
+    def __init__(
+        self,
+        name,
+        value,
+        setter=None,
+        getter=None,
+        visible=True,
+        _type=None,
+        *args,
+        **kwargs,
+    ):
         self._indicator_state = True
         self._partial_accessor = _PartialAccessor(self)
-        super().__init__(name, value, setter, getter, visible, format, _type, *args, **kwargs)
+        super().__init__(
+            name, value, setter, getter, visible, _type=_type, *args, **kwargs
+        )
 
     @property
     def set_partial(self):
@@ -463,7 +584,7 @@ class ParamArray(BaseParam):
         :meta private:
         """
         return self._value
-    
+
     def set_value(self, value=None):
         """
         This method overrides :func:`puzzlepiece.param.BaseParam.set_value`.
@@ -494,22 +615,33 @@ class ParamDropdown(BaseParam):
 
     :param values: List of default values available in the dropdown (can be None)
     """
+
     _type = str
 
-    def __init__(self, name, value, values, setter=None, getter=None, visible=True, *args, **kwargs):
+    def __init__(
+        self,
+        name,
+        value,
+        values,
+        setter=None,
+        getter=None,
+        visible=True,
+        *args,
+        **kwargs,
+    ):
         if values is None:
             self._values = []
         else:
             self._values = list(values)
         super().__init__(name, value, setter, getter, visible, *args, **kwargs)
-    
+
     def _make_input(self, value=None, connect=None):
         """:meta private:"""
         input = QtWidgets.QComboBox(editable=True)
 
         # Add the possible values
         input.addItems([str(x) for x in self._values])
-        
+
         if value is not None:
             value = str(value)
             if index := input.findData(value) > -1:
@@ -519,7 +651,7 @@ class ParamDropdown(BaseParam):
 
         if connect is not None:
             input.currentTextChanged.connect(connect)
-        
+
         return input, True
 
     def _input_set_value(self, value):
@@ -537,12 +669,14 @@ class ParamDropdown(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.currentText()
-    
+
+
 class ParamProgress(BaseParam):
     """
     A param with a progress bar. See the :func:`~puzzlepiece.param.progress` decorator below
     for how to use this in your Piece.
     """
+
     _type = float
 
     def _make_input(self, value=None, connect=None):
@@ -560,12 +694,12 @@ class ParamProgress(BaseParam):
             self.input.setMaximum(0)
         else:
             self.input.setMaximum(1000)
-            self.input.setValue(int(value*1000))
+            self.input.setValue(int(value * 1000))
 
     def _input_get_value(self):
         """:meta private:"""
         return self.input.value()
-    
+
     def iter(self, iterable):
         """
         Iterable wrapper that automatically updates the progress bar while the provided
@@ -578,19 +712,20 @@ class ParamProgress(BaseParam):
                 print(i)
                 # this will automatically update the progress bar as the iteration goes on
                 puzzle.process_events() # you may need to refresh the Puzzle to display changes
-        
+
         :param iterable: an iterable to wrap
         :rtype: iterable
         """
-        if hasattr(iterable, '__len__'):
+        if hasattr(iterable, "__len__"):
             length = len(iterable)
         else:
             length = -1
 
         for i, value in enumerate(iterable):
-            self.set_value(i/length)
+            self.set_value(i / length)
             yield value
         self.set_value(1)
+
 
 def wrap_setter(piece, setter):
     """
@@ -600,12 +735,14 @@ def wrap_setter(piece, setter):
     :meta private:
     """
     if setter is not None:
+
         @wraps(setter)
         def wrapper(value):
             return setter(piece, value)
     else:
         wrapper = None
     return wrapper
+
 
 def wrap_getter(piece, getter):
     """
@@ -615,6 +752,7 @@ def wrap_getter(piece, getter):
     :meta private:
     """
     if getter is not None:
+
         @wraps(getter)
         def wrapper():
             return getter(piece)
@@ -624,7 +762,7 @@ def wrap_getter(piece, getter):
 
 
 # The decorator syntax in Python is a little confusing
-def base_param(piece, name, value, visible=True, format='{}'):
+def base_param(piece, name, value, visible=True, format="{}"):
     """
     A decorator generator for registering a :class:`~puzzlepiece.param.BaseParam` in a Piece's
     :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
@@ -643,7 +781,7 @@ def base_param(piece, name, value, visible=True, format='{}'):
         puzzlepiece.param.base_param(self, 'param_name', 0)(None)
 
     Some of the decorators here decorate getters, and some decorate setters, depending on what is the more sensible default
-    -- a :func:`~puzzlepiece.param.readout` decorates a getter, as it is meant to display obtained values, and a 
+    -- a :func:`~puzzlepiece.param.readout` decorates a getter, as it is meant to display obtained values, and a
     :func:`~puzzlepiece.param.spinbox` decorates a setter, as it's meant to be an easy way to input and set values. If you
     need to also register the other function, use the :func:`puzzlepiece.param.BaseParam.set_getter`
     and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
@@ -651,7 +789,7 @@ def base_param(piece, name, value, visible=True, format='{}'):
         @puzzlepiece.param.base_param(self, 'position', 0)
         def position(self, value):
             self.sdk.set_position(value)
-        
+
         @position.set_getter(self)
         def position(self):
             return self.sdk.get_position()
@@ -665,20 +803,25 @@ def base_param(piece, name, value, visible=True, format='{}'):
     :param visible: bool flag, determined if a GUI component will be shown for this param.
     :param format: Default format for displaying the param if a custom input is not defined, and in
       :func:`puzzplepiece.parse.format`. For example `{:.2f}`, see https://pyformat.info/ for further details.
-    
+
     :returns: A decorator that can be applied to a setter function. The decorator returns the param object when called.
     """
+
     # The base_param function *creates and returns a decorator*,
     # it's just the way to enable passing parameters when decorating something
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
 
         # Register the param with the Piece
-        piece.params[name] = BaseParam(name, value, setter=wrapper, getter=None, visible=visible, format=format)
+        piece.params[name] = BaseParam(
+            name, value, setter=wrapper, getter=None, visible=visible, format=format
+        )
 
         # Return the newly created Param
         return piece.params[name]
+
     return decorator
+
 
 def readout(piece, name, visible=True, format="{}", _type=None):
     """
@@ -689,13 +832,24 @@ def readout(piece, name, visible=True, format="{}", _type=None):
 
     See :func:`~puzzlepiece.param.base_param` for more details.
     """
+
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
-        piece.params[name] = BaseParam(name, None, setter=None, getter=wrapper, visible=visible, format=format, _type=_type)
+        piece.params[name] = BaseParam(
+            name,
+            None,
+            setter=None,
+            getter=wrapper,
+            visible=visible,
+            format=format,
+            _type=_type,
+        )
         return piece.params[name]
+
     return decorator
 
-def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True):
+
+def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True, v_step=1):
     """
     A decorator generator for registering a :class:`~puzzlepiece.param.ParamInt` or :class:`~puzzlepiece.param.ParamFloat`
     in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
@@ -705,19 +859,55 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True):
     This will display a Qt spinbox - a numeric input box.
 
     See :func:`~puzzlepiece.param.base_param` for more details.
-    
+
     :param v_min: The minimum value accepted by the spinbox.
     :param v_max: The maximum value accepted by the spinbox.
+    :param v_step: The step change when spinbox buttons are used.
     """
+
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
-        
+
         if isinstance(value, int):
-            piece.params[name] = ParamInt(name, value, int(v_min), int(v_max), setter=wrapper, getter=None, visible=visible)
+            piece.params[name] = ParamInt(
+                name,
+                value,
+                int(v_min),
+                int(v_max),
+                setter=wrapper,
+                getter=None,
+                visible=visible,
+                v_step=int(v_step),
+            )
         else:
-            piece.params[name] = ParamFloat(name, value, v_min, v_max, wrapper, None, visible)
+            piece.params[name] = ParamFloat(
+                name, value, v_min, v_max, wrapper, None, visible, v_step
+            )
         return piece.params[name]
+
     return decorator
+
+
+def slider(piece, name, value, v_min=0, v_max=1, visible=True, v_step=0.05):
+    """
+    A decorator generator for registering a :class:`~puzzlepiece.param.ParamSlider`
+    in a Piece's :func:`~puzzlepiece.piece.Piece.define_params` method with a given **setter**.
+
+    This will display a slider with the specified properties and a label.
+    It will be an int or a float slider depending on the type of the values provided here.
+
+    See :func:`~puzzlepiece.param.base_param` for more details.
+    """
+
+    def decorator(setter):
+        wrapper = wrap_setter(piece, setter)
+        piece.params[name] = ParamSlider(
+            name, value, v_min, v_max, wrapper, None, visible, v_step
+        )
+        return piece.params[name]
+
+    return decorator
+
 
 def text(piece, name, value, visible=True):
     """
@@ -728,11 +918,14 @@ def text(piece, name, value, visible=True):
 
     See :func:`~puzzlepiece.param.base_param` for more details.
     """
+
     def decorator(setter):
-        wrapper = wrap_setter(piece, setter)  
+        wrapper = wrap_setter(piece, setter)
         piece.params[name] = ParamText(name, value, wrapper, None, visible)
         return piece.params[name]
+
     return decorator
+
 
 def checkbox(piece, name, value, visible=True):
     """
@@ -752,7 +945,9 @@ def checkbox(piece, name, value, visible=True):
         wrapper = wrap_setter(piece, setter)
         piece.params[name] = ParamCheckbox(name, value, wrapper, None, visible)
         return piece.params[name]
+
     return decorator
+
 
 def array(piece, name, visible=True):
     """
@@ -764,11 +959,16 @@ def array(piece, name, visible=True):
 
     See :func:`~puzzlepiece.param.base_param` for more details.
     """
+
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
-        piece.params[name] = ParamArray(name, None, setter=None, getter=wrapper, visible=visible)
+        piece.params[name] = ParamArray(
+            name, None, setter=None, getter=wrapper, visible=visible
+        )
         return piece.params[name]
+
     return decorator
+
 
 def dropdown(piece, name, value, visible=True):
     """
@@ -781,7 +981,7 @@ def dropdown(piece, name, value, visible=True):
         @puzzlepiece.param.dropdown(self, 'param_name', '')
         def param_values(self, value):
             return self.sdk.discover_devices()
-    
+
     It can also be used with a set list of defaults, or with no defaults at all::
 
         puzzlepiece.param.dropdown(self, 'param_name', 'one')(['one', 'two', 'three'])
@@ -793,14 +993,14 @@ def dropdown(piece, name, value, visible=True):
         @puzzlepiece.param.dropdown(self, 'serial_number', '')
         def serial_number(self, value):
             return self.sdk.discover_devices()
-        
+
         @serial_number.set_getter(self)
         def serial_number(self):
             return self.sdk.get_serial()
 
         @serial_number.set_setter(self)
         def serial_number(self, value):
-            return self.sdk.set_serial(value) 
+            return self.sdk.set_serial(value)
 
     The returned param displays a dropdown and stores a string. The user can edit the dropdown's
     text field directly, and pressing enter will add the current value to the dropdown.
@@ -815,7 +1015,9 @@ def dropdown(piece, name, value, visible=True):
             values = values(piece)
         piece.params[name] = ParamDropdown(name, value, values, None, None, visible)
         return piece.params[name]
+
     return decorator
+
 
 def progress(piece, name, visible=True):
     """
@@ -826,8 +1028,12 @@ def progress(piece, name, visible=True):
 
     See :func:`~puzzlepiece.param.base_param` for more details.
     """
+
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
-        piece.params[name] = ParamProgress(name, None, setter=None, getter=wrapper, visible=visible)
+        piece.params[name] = ParamProgress(
+            name, None, setter=None, getter=wrapper, visible=visible
+        )
         return piece.params[name]
+
     return decorator

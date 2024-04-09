@@ -11,3 +11,4 @@ API
    puzzlepiece.action
    puzzlepiece.parse
    puzzlepiece.threads
+   puzzlepiece.extras

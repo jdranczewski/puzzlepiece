@@ -1,6 +1,7 @@
 import puzzlepiece as pzp
 from pyqtgraph.Qt import QtWidgets
 
+
 class Piece(pzp.Piece):
     def __init__(self, puzzle):
         super().__init__(puzzle)
@@ -16,32 +17,32 @@ class Piece(pzp.Piece):
         @pzp.action.define(self, "Save")
         def save(self):
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
-            with open(fname, 'w') as f:
-                f.write("#pre " + self.params['pre'].get_value() + '\n')
-                f.write("#post " + self.params['post'].get_value() + '\n')
+            with open(fname, "w") as f:
+                f.write("#pre " + self.params["pre"].get_value() + "\n")
+                f.write("#post " + self.params["post"].get_value() + "\n")
                 f.write(self.text.toPlainText())
 
         @pzp.action.define(self, "Open")
         def _open(self):
             fname = str(QtWidgets.QFileDialog.getOpenFileName(self, "Open file...")[0])
-            with open(fname, 'r') as f:
+            with open(fname, "r") as f:
                 text = ""
                 for line in f.readlines():
-                    if '#pre ' in line:
-                        self.params['pre'].set_value(line[5:-1])
-                    elif '#post ' in line:
-                        self.params['post'].set_value(line[6:-1])
+                    if "#pre " in line:
+                        self.params["pre"].set_value(line[5:-1])
+                    elif "#post " in line:
+                        self.params["post"].set_value(line[6:-1])
                     else:
                         text += line
                 self.text.setPlainText(text)
-                
+
         @pzp.action.define(self, "Run")
         def run(self):
             self.stop = False
-            iter_name = self.params['iterator'].get_value()
+            iter_name = self.params["iterator"].get_value()
 
             try:
-                pzp.parse.run(self.params['pre'].get_value(), self.puzzle)
+                pzp.parse.run(self.params["pre"].get_value(), self.puzzle)
 
                 if len(iter_name):
                     iterator = self.puzzle.pieces[iter_name].iterator()
@@ -53,8 +54,8 @@ class Piece(pzp.Piece):
                 else:
                     pzp.parse.run(self.text.toPlainText(), self.puzzle)
             finally:
-                pzp.parse.run(self.params['post'].get_value(), self.puzzle)
-    
+                pzp.parse.run(self.params["post"].get_value(), self.puzzle)
+
     def custom_layout(self):
         layout = QtWidgets.QVBoxLayout()
 

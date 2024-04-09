@@ -1,5 +1,6 @@
 # Import the automation framework
 import puzzlepiece as pzp
+
 # Import the random number generator Piece
 from puzzlepiece.pieces import random_number, plotter
 
