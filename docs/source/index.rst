@@ -9,7 +9,8 @@ Welcome to the puzzlepiece documentation!
 **Puzzlepiece is a GUI-forward Python framework for automating experimental setups.** It focuses on abstracting communication
 with a piece of hardware into **standard inputs, outputs, and actions**. It then automatically **generates GUI components** for them,
 minimising the need for boilerplate code. Puzzlepiece allows the user to bring diverse controls into a single, consolidated application,
-and automate their interaction or experiment using a unified API, either through a built-in script language, or Interactive Python.
+and automate their interaction or experiment using a unified API, either by making custom Pieces, or through a built-in script language,
+or with Interactive Python.
 
 You can install puzzlepiece using pip::
 
@@ -86,6 +87,40 @@ You can then add this Piece to any Puzzle and display it easily::
 
 .. image:: basic_piece.png
 
+Interactions between Pieces
+===========================
+
+One Puzzle can contain multiple Pieces, and they can interact with each other through the Puzzle.
+For example we can create a Piece that accesses the RandomNumber generator created above::
+
+   class ManyNumbers(pzp.Piece):
+      def define_params(self):
+         # This param does not require a setter or getter, so it gets
+         # None as its argument
+         pzp.param.spinbox(self, "N", 10)(None)
+
+         # This param contains a numpy array
+         @pzp.param.array(self, 'numbers')
+         def numbers(self):
+            values = []
+            # Check this Piece's own param to see how many numbers the user wants
+            N = self.params["N"].get_value()
+            for i in range(N):
+               # Get param value from the other Piece
+               values.append(puzzle["random_number"].params["number"].get_value())
+            return values
+
+Once we add both Pieces to a Puzzle they can interact with each other::
+
+   app = pzp.QApp([])
+   puzzle = pzp.Puzzle(app, "Basic example")
+   puzzle.add_piece("random_number", RandomNumber, 0, 0)
+   puzzle.add_piece("many_numbers", ManyNumbers, 1, 0)
+   puzzle.show()
+   app.exec()
+
+.. image:: double_piece.png
+
 Running in Jupyter Lab/Notebook
 ===============================
 
@@ -116,8 +151,9 @@ Next steps
 ==========
 
 Some more detailed examples are located on GitHub: `how to construct an app <https://github.com/jdranczewski/puzzlepiece/tree/main/examples>`_
-or `how to code a Piece <https://github.com/jdranczewski/puzzlepiece/blob/main/puzzlepiece/pieces/random_number.py>`_.
-The full source code is available at https://github.com/jdranczewski/puzzlepiece .
+or `how to code a Piece <https://github.com/jdranczewski/puzzlepiece/blob/main/puzzlepiece/pieces/random_number.py>`_. Examples of more complex
+Pieces `are also available <https://github.com/jdranczewski/puzzlepiece/tree/main/puzzlepiece/pieces>`_.
+The full source code is available at https://github.com/jdranczewski/puzzlepiece.
 
 This documentation is meant as a good way to familiarise yourself with the library too - have a look at the table of contents below.
 
