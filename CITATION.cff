@@ -1,0 +1,15 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: puzzlepiece
+message: Please cite this software using these metadata.
+type: software
+authors:
+  - given-names: Jakub
+    family-names: Dranczewski
+    email: jbd17@ic.ac.uk
+    orcid: 'https://orcid.org/0000-0002-8946-2214'
+repository-code: 'https://github.com/jdranczewski/puzzlepiece'
+url: 'https://puzzlepiece.readthedocs.io/'
+license: Apache-2.0
