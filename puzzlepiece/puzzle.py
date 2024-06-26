@@ -1,5 +1,7 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
 from . import parse
+
+from pyqtgraph.Qt import QtWidgets, QtCore
+import importlib
 import sys
 
 
@@ -133,6 +135,24 @@ class Puzzle(QtWidgets.QWidget):
         self.register_piece(name, piece)
 
         return piece
+    
+    def replace_piece(self, name, new_piece):
+        old_piece = self.pieces[name]
+        if isinstance(new_piece, type):
+            new_piece = new_piece(self)
+
+        if old_piece in self._toplevel:
+            self.layout.replaceWidget(old_piece, new_piece, options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly)
+            new_piece.setTitle(name)
+        else:
+            for widget in self._toplevel:
+                if isinstance(widget, Folder):
+                    widget._replace_piece(name, old_piece, new_piece)
+
+        self._pieces._replace_item(name, new_piece)
+        old_piece.handle_close(None)
+        old_piece.deleteLater()
+
 
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
@@ -483,6 +503,22 @@ class Folder(QtWidgets.QTabWidget):
         """
         self.currentWidget().handle_shortcut(event)
 
+    def _replace_piece(self, name, old_piece, new_piece):
+        if old_piece in self.pieces:
+            index = self.indexOf(old_piece)
+            self.insertTab(index, new_piece, name)
+            new_piece.folder = self
+            # No title or border displayed when Piece in Folder
+            new_piece.setTitle(None)
+            new_piece.setStyleSheet("QGroupBox {border:0;}")
+
+            self.pieces.remove(old_piece)
+            self.pieces.append(new_piece)
+        else:
+            for widget in self.pieces:
+                if isinstance(widget, Grid):
+                    widget._replace_piece(name, old_piece, new_piece)
+
 
 class Grid(QtWidgets.QWidget):
     """
@@ -521,6 +557,12 @@ class Grid(QtWidgets.QWidget):
         piece.folder = self
         
         return piece
+    
+    def _replace_piece(self, name, old_piece, new_piece):
+        if old_piece in self.pieces:
+            self.layout.replaceWidget(old_piece, new_piece)
+            new_piece.setTitle(name)
+            new_piece.folder = self
 
     def handle_shortcut(self, event):
         """
@@ -566,6 +608,9 @@ class PieceDict:
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
         return self._dict[key]
+    
+    def _replace_item(self, key, value):
+        self._dict[key] = value
 
     def __contains__(self, item):
         return item in self._dict
