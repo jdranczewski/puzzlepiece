@@ -33,7 +33,10 @@ class DataGrid(QtWidgets.QWidget):
         self.param_names = row_example.params.keys()
 
         self._tree = QtWidgets.QTreeWidget()
-        self._tree.setHeaderLabels(("ID", *row_example.params.keys(), "actions"))
+        if len(row_example.actions.keys()):
+            self._tree.setHeaderLabels(("ID", *row_example.params.keys(), "actions"))
+        else:
+            self._tree.setHeaderLabels(("ID", *row_example.params.keys()))
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._tree)
@@ -169,7 +172,8 @@ class Row:
     def _populate_item(self, tree, item):
         for i, key in enumerate(self.params):
             tree.setItemWidget(item, i + 1, self.params[key])
-        tree.setItemWidget(item, i + 2, self._action_buttons())
+        if len(self.actions.keys()):
+            tree.setItemWidget(item, i + 2, self._action_buttons())
 
     def _action_buttons(self):
         widget = QtWidgets.QWidget()
