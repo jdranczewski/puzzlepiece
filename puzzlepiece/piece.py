@@ -321,6 +321,12 @@ class Popup(Piece):
         """
         return self._parent_piece
 
+    def add_child_params(self, param_names):
+        for name in param_names:
+            self.params[name] = self.parent_piece.params[name].make_child_param()
+
+    # TODO: A way to close the Popup from 'within'
+
     def handle_close(self):
         """
         Called when the Popup is closed. Override to perform actions when the user
