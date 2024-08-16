@@ -47,6 +47,7 @@ class BaseParam(QtWidgets.QWidget):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self._name = name
         self._setter = setter
         self._getter = getter
         self._value = None
@@ -268,6 +269,33 @@ class BaseParam(QtWidgets.QWidget):
         """
         return self._type(self.input.text())
 
+    def make_child_param(self, kwargs=None):
+        # Only make an explicit setter if this param has an explicit setter.
+        # The other case is handled via a Signal below, once the child
+        # param is created.
+        setter = None if self._setter is None else (lambda value: self.set_value(value))
+
+        # child params always have a getter, to make the direction of data flow clear.
+        def getter():
+            return self.get_value()
+
+        kwargs = kwargs or {}
+
+        child = type(self)(
+            self._name, self._value, setter=setter, getter=getter, **kwargs
+        )
+
+        if self._setter is None:
+            # If no explicit setter, just set the parent param whenever the child updates
+            child.changed.connect(lambda: self.set_value(child.value))
+        elif self._value is not None:
+            # When a param is created and has an explicit setter, it will be highlighted
+            # red to indicate the setter has not been called. Here we remove the highlight
+            # for the child if the parent's setter has been called already.
+            child.input.setStyleSheet("")
+
+        return child
+
     @property
     def type(self):
         """
@@ -350,6 +378,15 @@ class ParamInt(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.value()
+
+    def make_child_param(self, kwargs=None):
+        return super().make_child_param(
+            kwargs={
+                "v_min": self._v_min,
+                "v_max": self._v_max,
+                "v_step": self._v_step,
+            }
+        )
 
 
 class ParamFloat(ParamInt):
@@ -669,6 +706,13 @@ class ParamDropdown(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.currentText()
+
+    def make_child_param(self, kwargs=None):
+        return super().make_child_param(
+            kwargs={
+                "values": self._values,
+            }
+        )
 
 
 class ParamProgress(BaseParam):

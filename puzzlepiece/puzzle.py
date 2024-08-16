@@ -20,7 +20,9 @@ class Puzzle(QtWidgets.QWidget):
     :type bottom_buttons: bool
     """
 
-    def __init__(self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs):
+    def __init__(
+        self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
@@ -559,7 +561,7 @@ class Grid(QtWidgets.QWidget):
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
         piece.folder = self
-        
+
         return piece
     
     def _replace_piece(self, name, old_piece, new_piece):
