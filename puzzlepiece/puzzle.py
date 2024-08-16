@@ -144,6 +144,8 @@ class Puzzle(QtWidgets.QWidget):
         if old_piece in self._toplevel:
             self.layout.replaceWidget(old_piece, new_piece, options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly)
             new_piece.setTitle(name)
+            self._toplevel.remove(old_piece)
+            self._toplevel.append(new_piece)
         else:
             for widget in self._toplevel:
                 if isinstance(widget, Folder):
@@ -151,7 +153,9 @@ class Puzzle(QtWidgets.QWidget):
 
         self._pieces._replace_item(name, new_piece)
         old_piece.handle_close(None)
-        old_piece.deleteLater()
+        # old_piece.deleteLater()
+        old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        old_piece.close()
 
 
     def add_folder(self, row, column, rowspan=1, colspan=1):
@@ -563,6 +567,8 @@ class Grid(QtWidgets.QWidget):
             self.layout.replaceWidget(old_piece, new_piece)
             new_piece.setTitle(name)
             new_piece.folder = self
+            self.pieces.remove(old_piece)
+            self.pieces.append(new_piece)
 
     def handle_shortcut(self, event):
         """
