@@ -56,15 +56,19 @@ class DataGrid(QtWidgets.QWidget):
         """
         return [{key: x[key].value for key in x.params} for x in self.rows]
 
-    def add_row(self, **kwargs):
+    def add_row(self, row_class=None, **kwargs):
         """
         Add a Row with default param values.
 
+        :param row_class: row class to use, if not specified uses the one provided
+          when the DataGrid was created. The class provided here should have the same
+          params and actions as the original one!
         :param kwargs: keyword arguments matching param names can be passed
           to set param values in the new row
         """
         item = QtWidgets.QTreeWidgetItem(self._tree, (str(len(self.rows)),))
-        row = self._row_class(self, self.puzzle)
+        row_class = row_class or self._row_class
+        row = row_class(self, self.puzzle)
         row._populate_item(self._tree, item)
         self.rows.append(row)
         self._items.append(item)
@@ -90,6 +94,9 @@ class DataGrid(QtWidgets.QWidget):
         for i in range(len(self.rows)):
             self._items[i].setText(0, str(i))
         self.rows_changed.emit()
+
+    def select_row(self, id):
+        self._tree.setCurrentItem(self._items[id])
 
     def get_index(self, row):
         """
