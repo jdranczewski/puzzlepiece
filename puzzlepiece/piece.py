@@ -125,7 +125,7 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
-    def open_popup(self, popup):
+    def open_popup(self, popup, name=None):
         """
         Open a popup window for this Piece. A popup is a :class:`puzzlepiece.piece.Popup`
         object, which is like a Piece but floats in a separate window attached to the main
@@ -134,6 +134,7 @@ class Piece(QtWidgets.QGroupBox):
         for details on implementing a Popup.
 
         :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
+        :param name: text to show as the window title
         :rtype: puzzlepiece.piece.Popup
         """
         # Instantiate the popup
@@ -146,6 +147,7 @@ class Piece(QtWidgets.QGroupBox):
         layout = QtWidgets.QVBoxLayout()
         dialog.setLayout(layout)
         layout.addWidget(popup)
+        dialog.setWindowTitle(name or "Popup")
 
         # Display the dialog
         dialog.show()
