@@ -282,7 +282,8 @@ class BaseParam(QtWidgets.QWidget):
         kwargs = kwargs or {}
 
         child = type(self)(
-            self._name, self._value, setter=setter, getter=getter, **kwargs
+            self._name, self._value, setter=setter, getter=getter,
+            format=self._format, _type=self._type, **kwargs
         )
 
         if self._setter is None:
