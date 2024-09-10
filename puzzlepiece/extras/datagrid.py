@@ -24,10 +24,11 @@ class DataGrid(QtWidgets.QWidget):
     #: A Qt signal emitted when any data in the DataGrid changes (including when rows are added/removed).
     data_changed = QtCore.Signal()
 
-    def __init__(self, row_class, puzzle=None):
+    def __init__(self, row_class, puzzle=None, parent_piece=None):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
         self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+        self.parent_piece = parent_piece
         self._row_class = row_class
         row_example = row_class(self.puzzle)
         self.param_names = row_example.params.keys()
@@ -74,7 +75,7 @@ class DataGrid(QtWidgets.QWidget):
         self._items.append(item)
         for key in kwargs:
             row.params[key].set_value(kwargs[key])
-        for param_name in self.param_names:
+        for param_name in row.params:
             if param_name in self._slots:
                 for slot in self._slots[param_name]:
                     row.params[param_name].changed.connect(slot)
@@ -168,6 +169,35 @@ class Row:
         """
         pass
 
+    def open_popup(self, popup, name=None):
+        """
+        Open a popup window for this Row.
+        See :func:`puzzlepiece.piece.Piece.open_popup`.
+
+        :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
+        :param name: text to show as the window title
+        :rtype: puzzlepiece.piece.Popup
+        """
+        # Instantiate the popup
+        if isinstance(popup, type):
+            popup = popup(self, self.puzzle)
+        popup.setStyleSheet("QGroupBox {border:0;}")
+
+        # Make a dialog window for the popup to live in
+        dialog = pzp.piece._QDialog(self.parent, popup)
+        layout = QtWidgets.QVBoxLayout()
+        dialog.setLayout(layout)
+        layout.addWidget(popup)
+        dialog.setWindowTitle(name or "Popup")
+
+        # Display the dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self.puzzle._close_popups.connect(dialog.accept)
+
+        return popup
+
     def elevate(self):
         """
         For compatibility with the Piece's API.
@@ -177,7 +207,8 @@ class Row:
         pass
 
     def _populate_item(self, tree, item):
-        for i, key in enumerate(self.params):
+        visible_params = [x for x in self.params if self.params[x].visible]
+        for i, key in enumerate(visible_params):
             tree.setItemWidget(item, i + 1, self.params[key])
         if len(self.actions.keys()):
             tree.setItemWidget(item, i + 2, self._action_buttons())
