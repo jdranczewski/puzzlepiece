@@ -481,6 +481,8 @@ class Folder(QtWidgets.QTabWidget):
         # No title or border displayed when Piece in Folder
         piece.setTitle(None)
         piece.setStyleSheet("QGroupBox {border:0;}")
+        # Remove most of the border if the stylesheet fails
+        piece.setFlat(True)
 
         return piece
 
@@ -517,6 +519,7 @@ class Folder(QtWidgets.QTabWidget):
             # No title or border displayed when Piece in Folder
             new_piece.setTitle(None)
             new_piece.setStyleSheet("QGroupBox {border:0;}")
+            new_piece.setFlat(True)
 
             self.pieces.remove(old_piece)
             self.pieces.append(new_piece)

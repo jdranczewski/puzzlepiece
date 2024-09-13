@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 from functools import wraps
 import numpy as np
 
@@ -67,6 +67,11 @@ class BaseParam(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
+        # Background colour
+        pal = QtGui.QPalette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor(252, 217, 202, 255))
+        self.setPalette(pal)
+
         # Give the param a label
         self.label = QtWidgets.QLabel()
         self.label.setText(name + ":")
@@ -80,7 +85,7 @@ class BaseParam(QtWidgets.QWidget):
             self._value = self._type(value)
         if self._value is None:
             # Highlight that the setter or getter haven't been called yet
-            self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
+            self.setAutoFillBackground(True)
         layout.addWidget(self.input, 0, 1)
         # self.set_value(value)
 
@@ -112,8 +117,8 @@ class BaseParam(QtWidgets.QWidget):
 
     def _value_change_handler(self):
         if self._setter is not None:
-            # Highlight the input box if a setter is set
-            self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
+            # Highlight the param box if a setter is set
+            self.setAutoFillBackground(True)
         else:
             # If there's no setter, we call set_value to set the value from input
             self.set_value()
@@ -161,7 +166,7 @@ class BaseParam(QtWidgets.QWidget):
             self._value = value
 
         # Clear the highlight and emit the changed signal
-        self.input.setStyleSheet("")
+        self.setAutoFillBackground(False)
         self.changed.emit()
         return self._value
 
@@ -180,7 +185,7 @@ class BaseParam(QtWidgets.QWidget):
 
             # Set the value to the input and emit signal if needed
             self._input_set_value(new_value)
-            self.input.setStyleSheet("")
+            self.setAutoFillBackground(False)
             self.changed.emit()
 
             return new_value
@@ -293,7 +298,7 @@ class BaseParam(QtWidgets.QWidget):
             # When a param is created and has an explicit setter, it will be highlighted
             # red to indicate the setter has not been called. Here we remove the highlight
             # for the child if the parent's setter has been called already.
-            child.input.setStyleSheet("")
+            child.setAutoFillBackground(False)
 
         return child
 
