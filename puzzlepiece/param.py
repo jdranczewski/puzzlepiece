@@ -1,6 +1,10 @@
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
+from qtpy import QtWidgets, QtCore, QtGui
 from functools import wraps
 import numpy as np
+
+
+_red_bg_palette = QtGui.QPalette()
+_red_bg_palette.setColor(_red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255))
 
 
 class BaseParam(QtWidgets.QWidget):
@@ -66,11 +70,7 @@ class BaseParam(QtWidgets.QWidget):
         self._main_layout = layout = QtWidgets.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
-
-        # Background colour
-        pal = QtGui.QPalette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor(252, 217, 202, 255))
-        self.setPalette(pal)
+        self.setPalette(_red_bg_palette)
 
         # Give the param a label
         self.label = QtWidgets.QLabel()
