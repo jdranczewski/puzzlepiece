@@ -89,6 +89,10 @@ class Worker(QtCore.QRunnable):
             self.done = True
 
 
+class _Done_Emitter(QtCore.QObject):
+    signal = QtCore.Signal()
+
+
 class LiveWorker(Worker):
     """
     A Worker that calls a function repeatedly in a thread,
@@ -106,6 +110,10 @@ class LiveWorker(Worker):
         super().__init__(function, args, kwargs)
         #: A Qt signal emitted each time the function returns, passes the returned value to the connected Slot.
         self.returned = self.returned
+        # The above line is there for documentation to compile correctly
+        self._done_emitter = _Done_Emitter()
+        #: A Qt signal emitted when the LiveWorker is stopped.
+        self.done_signal = self._done_emitter.signal
 
     def stop(self):
         """
@@ -128,6 +136,7 @@ class LiveWorker(Worker):
                     time.sleep(self.sleep)
         finally:
             self.done = True
+            self.done_signal.emit()
 
 
 class PuzzleTimer(QtWidgets.QWidget):
@@ -170,6 +179,7 @@ class PuzzleTimer(QtWidgets.QWidget):
         if state and (self.worker is None or self.worker.done):
             self.worker = LiveWorker(self.function, self._sleep, self.args, self.kwargs)
             self.worker.returned.connect(self._return_handler)
+            self.worker.done_signal.connect(self.stop)
             self.puzzle.run_worker(self.worker)
         elif self.worker is not None:
             self.worker.stop()
