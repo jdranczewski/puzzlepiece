@@ -337,6 +337,7 @@ class Puzzle(QtWidgets.QWidget):
     def _call_stop(self):
         for piece_name in self.pieces:
             self.pieces[piece_name].call_stop()
+        self._shutdown_threads.emit()
 
     def _button_layout(self):
         layout = QtWidgets.QHBoxLayout()
