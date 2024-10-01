@@ -97,7 +97,19 @@ class Puzzle(QtWidgets.QWidget):
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
 
-        You can also directly index the Puzzle object with the Piece name.
+        You can also directly index the Puzzle object with the :class:`~puzzlepiece.piece.Piece` name,
+        or even with a :class:`~puzzlepiece.piece.Piece` and a :class:`~puzzlepiece.param.BaseParam`::
+
+            # These two are equivalent
+            puzzle.pieces["piece_name"]
+            puzzle["piece_name"]
+
+            # These three are equivalent
+            puzzle.pieces["piece_name"].params["piece_name"]
+            puzzle["piece_name"]["param_name"]
+            puzzle["piece_name:param_name"]
+
+        The valid keys for indexing a Puzzle object are available when autocompleting the key in IPython.
         """
         return self._pieces
 
@@ -363,7 +375,10 @@ class Puzzle(QtWidgets.QWidget):
         return self.pieces[name]
 
     def _ipython_key_completions_(self):
-        return self.pieces.keys()
+        l = list(self.pieces.keys())
+        for piece in self.pieces.keys():
+            l.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
+        return l
 
     def run(self, text):
         """
@@ -600,6 +615,8 @@ class PieceDict:
     """
     A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
     a Piece tries to use another Piece that hasn't been registered.
+
+    It also allows indexing params directly by using this key format: ``[piece_name]:[param_name]``.
     """
 
     def __init__(self):
@@ -616,6 +633,12 @@ class PieceDict:
 
     def __getitem__(self, key):
         if key not in self._dict:
+            try:
+                piece, param = key.split(":")
+                return self._dict[piece][param]
+            except ValueError:
+                # key is not in the piece:param format
+                pass
             raise KeyError(
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
