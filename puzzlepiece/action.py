@@ -45,6 +45,16 @@ class Action(QtCore.QObject):
         Bool flag, indicates whether this action is visible as a button in the GUI.
         """
         return self._visible
+    
+    def make_child_action(self):
+        """
+        Create and return a child action that calls the same callable.
+
+        See :func:`puzzlepiece.piece.Popup.add_child_actions` for a quick way of adding child
+        actions to a popup.
+        """
+        child = Action(self.function, self.parent, self.shortcut)
+        return child
 
 
 def define(piece, name, shortcut=None, visible=True):

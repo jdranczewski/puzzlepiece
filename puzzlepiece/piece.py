@@ -324,8 +324,32 @@ class Popup(Piece):
         return self._parent_piece
 
     def add_child_params(self, param_names):
+        """
+        Given a list of param names referring to params of the parent :class:`~puzzlepiece.piece.Piece`,
+        add corresponding child params to this Popup.
+
+        This lets you quickly make a Settings popup that adjusts the hidden params of a Piece.
+
+        See :func:`puzzlepiece.param.BaseParam.make_child_param` for details.
+
+        :param param_names: List of the parent_piece's param names to make children from.
+        """
         for name in param_names:
             self.params[name] = self.parent_piece.params[name].make_child_param()
+
+    def add_child_actions(self, action_names):
+        """
+        Given a list of action names referring to actions of the parent :class:`~puzzlepiece.piece.Piece`,
+        add corresponding child actions to this Popup.
+
+        This lets you surface additional actions in a Popup without cluttering the main Piece.
+
+        See :func:`puzzlepiece.action.Action.make_child_action` for details.
+
+        :param action_names: List of the parent_piece's action names to make children from.
+        """
+        for name in action_names:
+            self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
     # TODO: A way to close the Popup from 'within'
 
