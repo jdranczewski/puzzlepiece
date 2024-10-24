@@ -1,5 +1,6 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
 from . import parse
+
+from pyqtgraph.Qt import QtWidgets, QtCore
 import sys
 
 
@@ -18,7 +19,9 @@ class Puzzle(QtWidgets.QWidget):
     :type bottom_buttons: bool
     """
 
-    def __init__(self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs):
+    def __init__(
+        self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
@@ -93,7 +96,19 @@ class Puzzle(QtWidgets.QWidget):
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
 
-        You can also directly index the Puzzle object with the Piece name.
+        You can also directly index the Puzzle object with the :class:`~puzzlepiece.piece.Piece` name,
+        or even with a :class:`~puzzlepiece.piece.Piece` and a :class:`~puzzlepiece.param.BaseParam`::
+
+            # These two are equivalent
+            puzzle.pieces["piece_name"]
+            puzzle["piece_name"]
+
+            # These three are equivalent
+            puzzle.pieces["piece_name"].params["piece_name"]
+            puzzle["piece_name"]["param_name"]
+            puzzle["piece_name:param_name"]
+
+        The valid keys for indexing a Puzzle object are available when autocompleting the key in IPython.
         """
         return self._pieces
 
@@ -133,6 +148,42 @@ class Puzzle(QtWidgets.QWidget):
         self.register_piece(name, piece)
 
         return piece
+
+    def replace_piece(self, name, new_piece):
+        """
+        Replace a named :class:`~puzzlepiece.piece.Piece` with a new one. Can be
+        combined with ``importlib.reload`` to do live development on Pieces.
+
+        This method is **experimental** and can sometimes fail. It's useful for development,
+        but shouldn't really be used in production applications.
+
+        :param name: Name of the Piece to be replaced.
+        :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
+          be automatically instantiated).
+        """
+        old_piece = self.pieces[name]
+        if isinstance(new_piece, type):
+            new_piece = new_piece(self)
+
+        if old_piece in self._toplevel:
+            self.layout.replaceWidget(
+                old_piece,
+                new_piece,
+                options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly,
+            )
+            new_piece.setTitle(name)
+            self._toplevel.remove(old_piece)
+            self._toplevel.append(new_piece)
+        else:
+            for widget in self._toplevel:
+                if isinstance(widget, Folder):
+                    widget._replace_piece(name, old_piece, new_piece)
+
+        self._pieces._replace_item(name, new_piece)
+        old_piece.handle_close(None)
+        # old_piece.deleteLater()
+        old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        old_piece.close()
 
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
@@ -311,6 +362,7 @@ class Puzzle(QtWidgets.QWidget):
     def _call_stop(self):
         for piece_name in self.pieces:
             self.pieces[piece_name].call_stop()
+        self._shutdown_threads.emit()
 
     def _button_layout(self):
         layout = QtWidgets.QHBoxLayout()
@@ -336,7 +388,10 @@ class Puzzle(QtWidgets.QWidget):
         return self.pieces[name]
 
     def _ipython_key_completions_(self):
-        return self.pieces.keys()
+        values = list(self.pieces.keys())
+        for piece in self.pieces.keys():
+            values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
+        return values
 
     def run(self, text):
         """
@@ -455,6 +510,8 @@ class Folder(QtWidgets.QTabWidget):
         # No title or border displayed when Piece in Folder
         piece.setTitle(None)
         piece.setStyleSheet("QGroupBox {border:0;}")
+        # Remove most of the border if the stylesheet fails
+        piece.setFlat(True)
 
         return piece
 
@@ -482,6 +539,23 @@ class Folder(QtWidgets.QTabWidget):
         :meta private:
         """
         self.currentWidget().handle_shortcut(event)
+
+    def _replace_piece(self, name, old_piece, new_piece):
+        if old_piece in self.pieces:
+            index = self.indexOf(old_piece)
+            self.insertTab(index, new_piece, name)
+            new_piece.folder = self
+            # No title or border displayed when Piece in Folder
+            new_piece.setTitle(None)
+            new_piece.setStyleSheet("QGroupBox {border:0;}")
+            new_piece.setFlat(True)
+
+            self.pieces.remove(old_piece)
+            self.pieces.append(new_piece)
+        else:
+            for widget in self.pieces:
+                if isinstance(widget, Grid):
+                    widget._replace_piece(name, old_piece, new_piece)
 
 
 class Grid(QtWidgets.QWidget):
@@ -519,8 +593,16 @@ class Grid(QtWidgets.QWidget):
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
         piece.folder = self
-        
+
         return piece
+
+    def _replace_piece(self, name, old_piece, new_piece):
+        if old_piece in self.pieces:
+            self.layout.replaceWidget(old_piece, new_piece)
+            new_piece.setTitle(name)
+            new_piece.folder = self
+            self.pieces.remove(old_piece)
+            self.pieces.append(new_piece)
 
     def handle_shortcut(self, event):
         """
@@ -546,6 +628,8 @@ class PieceDict:
     """
     A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
     a Piece tries to use another Piece that hasn't been registered.
+
+    It also allows indexing params directly by using this key format: ``[piece_name]:[param_name]``.
     """
 
     def __init__(self):
@@ -562,10 +646,19 @@ class PieceDict:
 
     def __getitem__(self, key):
         if key not in self._dict:
+            try:
+                piece, param = key.split(":")
+                return self._dict[piece][param]
+            except ValueError:
+                # key is not in the piece:param format
+                pass
             raise KeyError(
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
         return self._dict[key]
+
+    def _replace_item(self, key, value):
+        self._dict[key] = value
 
     def __contains__(self, item):
         return item in self._dict

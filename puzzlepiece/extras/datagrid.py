@@ -24,16 +24,20 @@ class DataGrid(QtWidgets.QWidget):
     #: A Qt signal emitted when any data in the DataGrid changes (including when rows are added/removed).
     data_changed = QtCore.Signal()
 
-    def __init__(self, row_class, puzzle=None):
+    def __init__(self, row_class, puzzle=None, parent_piece=None):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
         self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+        self.parent_piece = parent_piece
         self._row_class = row_class
         row_example = row_class(self.puzzle)
         self.param_names = row_example.params.keys()
 
         self._tree = QtWidgets.QTreeWidget()
-        self._tree.setHeaderLabels(("ID", *row_example.params.keys(), "actions"))
+        if len(row_example.actions.keys()):
+            self._tree.setHeaderLabels(("ID", *row_example.params.keys(), "actions"))
+        else:
+            self._tree.setHeaderLabels(("ID", *row_example.params.keys()))
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._tree)
@@ -53,21 +57,25 @@ class DataGrid(QtWidgets.QWidget):
         """
         return [{key: x[key].value for key in x.params} for x in self.rows]
 
-    def add_row(self, **kwargs):
+    def add_row(self, row_class=None, **kwargs):
         """
         Add a Row with default param values.
 
+        :param row_class: row class to use, if not specified uses the one provided
+          when the DataGrid was created. The class provided here should have the same
+          params and actions as the original one!
         :param kwargs: keyword arguments matching param names can be passed
           to set param values in the new row
         """
         item = QtWidgets.QTreeWidgetItem(self._tree, (str(len(self.rows)),))
-        row = self._row_class(self, self.puzzle)
+        row_class = row_class or self._row_class
+        row = row_class(self, self.puzzle)
         row._populate_item(self._tree, item)
         self.rows.append(row)
         self._items.append(item)
         for key in kwargs:
             row.params[key].set_value(kwargs[key])
-        for param_name in self.param_names:
+        for param_name in row.params:
             if param_name in self._slots:
                 for slot in self._slots[param_name]:
                     row.params[param_name].changed.connect(slot)
@@ -87,6 +95,9 @@ class DataGrid(QtWidgets.QWidget):
         for i in range(len(self.rows)):
             self._items[i].setText(0, str(i))
         self.rows_changed.emit()
+
+    def select_row(self, id):
+        self._tree.setCurrentItem(self._items[id])
 
     def get_index(self, row):
         """
@@ -158,6 +169,35 @@ class Row:
         """
         pass
 
+    def open_popup(self, popup, name=None):
+        """
+        Open a popup window for this Row.
+        See :func:`puzzlepiece.piece.Piece.open_popup`.
+
+        :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
+        :param name: text to show as the window title
+        :rtype: puzzlepiece.piece.Popup
+        """
+        # Instantiate the popup
+        if isinstance(popup, type):
+            popup = popup(self, self.puzzle)
+        popup.setStyleSheet("QGroupBox {border:0;}")
+
+        # Make a dialog window for the popup to live in
+        dialog = pzp.piece._QDialog(self.parent, popup)
+        layout = QtWidgets.QVBoxLayout()
+        dialog.setLayout(layout)
+        layout.addWidget(popup)
+        dialog.setWindowTitle(name or "Popup")
+
+        # Display the dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self.puzzle._close_popups.connect(dialog.accept)
+
+        return popup
+
     def elevate(self):
         """
         For compatibility with the Piece's API.
@@ -167,9 +207,11 @@ class Row:
         pass
 
     def _populate_item(self, tree, item):
-        for i, key in enumerate(self.params):
+        visible_params = [x for x in self.params if self.params[x].visible]
+        for i, key in enumerate(visible_params):
             tree.setItemWidget(item, i + 1, self.params[key])
-        tree.setItemWidget(item, i + 2, self._action_buttons())
+        if len(self.actions.keys()):
+            tree.setItemWidget(item, i + 2, self._action_buttons())
 
     def _action_buttons(self):
         widget = QtWidgets.QWidget()

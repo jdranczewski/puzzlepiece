@@ -1,6 +1,12 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore, QtGui
 from functools import wraps
 import numpy as np
+
+
+_red_bg_palette = QtGui.QPalette()
+_red_bg_palette.setColor(
+    _red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255)
+)
 
 
 class BaseParam(QtWidgets.QWidget):
@@ -47,6 +53,7 @@ class BaseParam(QtWidgets.QWidget):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self._name = name
         self._setter = setter
         self._getter = getter
         self._value = None
@@ -65,6 +72,7 @@ class BaseParam(QtWidgets.QWidget):
         self._main_layout = layout = QtWidgets.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
+        self.setPalette(_red_bg_palette)
 
         # Give the param a label
         self.label = QtWidgets.QLabel()
@@ -79,7 +87,7 @@ class BaseParam(QtWidgets.QWidget):
             self._value = self._type(value)
         if self._value is None:
             # Highlight that the setter or getter haven't been called yet
-            self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
+            self.setAutoFillBackground(True)
         layout.addWidget(self.input, 0, 1)
         # self.set_value(value)
 
@@ -111,8 +119,8 @@ class BaseParam(QtWidgets.QWidget):
 
     def _value_change_handler(self):
         if self._setter is not None:
-            # Highlight the input box if a setter is set
-            self.input.setStyleSheet("QWidget { background-color: #fcd9ca; }")
+            # Highlight the param box if a setter is set
+            self.setAutoFillBackground(True)
         else:
             # If there's no setter, we call set_value to set the value from input
             self.set_value()
@@ -160,7 +168,7 @@ class BaseParam(QtWidgets.QWidget):
             self._value = value
 
         # Clear the highlight and emit the changed signal
-        self.input.setStyleSheet("")
+        self.setAutoFillBackground(False)
         self.changed.emit()
         return self._value
 
@@ -179,7 +187,7 @@ class BaseParam(QtWidgets.QWidget):
 
             # Set the value to the input and emit signal if needed
             self._input_set_value(new_value)
-            self.input.setStyleSheet("")
+            self.setAutoFillBackground(False)
             self.changed.emit()
 
             return new_value
@@ -268,6 +276,58 @@ class BaseParam(QtWidgets.QWidget):
         """
         return self._type(self.input.text())
 
+    def make_child_param(self, kwargs=None):
+        """
+        Create and return a child param. Changing the value of the child changes the value
+        of the parent, but not vice versa - each child has a getter that allows for refreshing
+        the value from the parent.
+
+        The child will be of the same type as the parent - a checkbox, spinbox, etc.
+
+        The parent's getter will be called when you :func:`~puzzlepiece.param.BaseParam.get_value`
+        on the child. The parent's setter will be called when you
+        :func:`~puzzlepiece.param.BaseParam.set_value` on a child.
+
+        You may need to override this method when creating params that have a different call
+        signature for ``__init__``. Additional arguments can then be provided with ``kwargs``.
+
+        See :func:`puzzlepiece.piece.Popup.add_child_params` for a quick way of adding child
+        params to a popup.
+
+        :param kwargs: Additional arguments to pass when creating the child.
+        """
+        # Only make an explicit setter if this param has an explicit setter.
+        # The other case is handled via a Signal below, once the child
+        # param is created.
+        setter = None if self._setter is None else (lambda value: self.set_value(value))
+
+        # child params always have a getter, to make the direction of data flow clear.
+        def getter():
+            return self.get_value()
+
+        kwargs = kwargs or {}
+
+        child = type(self)(
+            self._name,
+            self._value,
+            setter=setter,
+            getter=getter,
+            format=self._format,
+            _type=self._type,
+            **kwargs,
+        )
+
+        if self._setter is None:
+            # If no explicit setter, just set the parent param whenever the child updates
+            child.changed.connect(lambda: self.set_value(child.value))
+        elif self._value is not None:
+            # When a param is created and has an explicit setter, it will be highlighted
+            # red to indicate the setter has not been called. Here we remove the highlight
+            # for the child if the parent's setter has been called already.
+            child.setAutoFillBackground(False)
+
+        return child
+
     @property
     def type(self):
         """
@@ -350,6 +410,15 @@ class ParamInt(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.value()
+
+    def make_child_param(self, kwargs=None):
+        return super().make_child_param(
+            kwargs={
+                "v_min": self._v_min,
+                "v_max": self._v_max,
+                "v_step": self._v_step,
+            }
+        )
 
 
 class ParamFloat(ParamInt):
@@ -669,6 +738,13 @@ class ParamDropdown(BaseParam):
     def _input_get_value(self):
         """:meta private:"""
         return self.input.currentText()
+
+    def make_child_param(self, kwargs=None):
+        return super().make_child_param(
+            kwargs={
+                "values": self._values,
+            }
+        )
 
 
 class ParamProgress(BaseParam):
