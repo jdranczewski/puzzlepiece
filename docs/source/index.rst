@@ -150,6 +150,8 @@ you may want to update ``ipykernel`` if your cells are not running after an exce
 Next steps
 ==========
 
+The :ref:`Tutorial` is a great place to start - have a look or run it yourself to learn interactively!
+
 Some more detailed examples are located on GitHub: `how to construct an app <https://github.com/jdranczewski/puzzlepiece/tree/main/examples>`_
 or `how to code a Piece <https://github.com/jdranczewski/puzzlepiece/blob/main/puzzlepiece/pieces/random_number.py>`_. Examples of more complex
 Pieces `are also available <https://github.com/jdranczewski/puzzlepiece/tree/main/puzzlepiece/pieces>`_.
@@ -162,6 +164,7 @@ This documentation is meant as a good way to familiarise yourself with the libra
    :caption: Contents:
 
    modules
+   tutorial
 
 
 Indices and tables
