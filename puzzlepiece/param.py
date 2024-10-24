@@ -4,7 +4,9 @@ import numpy as np
 
 
 _red_bg_palette = QtGui.QPalette()
-_red_bg_palette.setColor(_red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255))
+_red_bg_palette.setColor(
+    _red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255)
+)
 
 
 class BaseParam(QtWidgets.QWidget):
@@ -281,7 +283,7 @@ class BaseParam(QtWidgets.QWidget):
         the value from the parent.
 
         The child will be of the same type as the parent - a checkbox, spinbox, etc.
-        
+
         The parent's getter will be called when you :func:`~puzzlepiece.param.BaseParam.get_value`
         on the child. The parent's setter will be called when you
         :func:`~puzzlepiece.param.BaseParam.set_value` on a child.
@@ -306,8 +308,13 @@ class BaseParam(QtWidgets.QWidget):
         kwargs = kwargs or {}
 
         child = type(self)(
-            self._name, self._value, setter=setter, getter=getter,
-            format=self._format, _type=self._type, **kwargs
+            self._name,
+            self._value,
+            setter=setter,
+            getter=getter,
+            format=self._format,
+            _type=self._type,
+            **kwargs,
         )
 
         if self._setter is None:

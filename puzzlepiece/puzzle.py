@@ -1,7 +1,6 @@
 from . import parse
 
 from pyqtgraph.Qt import QtWidgets, QtCore
-import importlib
 import sys
 
 
@@ -149,14 +148,29 @@ class Puzzle(QtWidgets.QWidget):
         self.register_piece(name, piece)
 
         return piece
-    
+
     def replace_piece(self, name, new_piece):
+        """
+        Replace a named :class:`~puzzlepiece.piece.Piece` with a new one. Can be
+        combined with ``importlib.reload`` to do live development on Pieces.
+
+        This method is **experimental** and can sometimes fail. It's useful for development,
+        but shouldn't really be used in production applications.
+
+        :param name: Name of the Piece to be replaced.
+        :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
+          be automatically instantiated).
+        """
         old_piece = self.pieces[name]
         if isinstance(new_piece, type):
             new_piece = new_piece(self)
 
         if old_piece in self._toplevel:
-            self.layout.replaceWidget(old_piece, new_piece, options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly)
+            self.layout.replaceWidget(
+                old_piece,
+                new_piece,
+                options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly,
+            )
             new_piece.setTitle(name)
             self._toplevel.remove(old_piece)
             self._toplevel.append(new_piece)
@@ -170,7 +184,6 @@ class Puzzle(QtWidgets.QWidget):
         # old_piece.deleteLater()
         old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         old_piece.close()
-
 
     def add_folder(self, row, column, rowspan=1, colspan=1):
         """
@@ -375,10 +388,10 @@ class Puzzle(QtWidgets.QWidget):
         return self.pieces[name]
 
     def _ipython_key_completions_(self):
-        l = list(self.pieces.keys())
+        values = list(self.pieces.keys())
         for piece in self.pieces.keys():
-            l.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
-        return l
+            values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
+        return values
 
     def run(self, text):
         """
@@ -582,7 +595,7 @@ class Grid(QtWidgets.QWidget):
         piece.folder = self
 
         return piece
-    
+
     def _replace_piece(self, name, old_piece, new_piece):
         if old_piece in self.pieces:
             self.layout.replaceWidget(old_piece, new_piece)
@@ -643,7 +656,7 @@ class PieceDict:
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
         return self._dict[key]
-    
+
     def _replace_item(self, key, value):
         self._dict[key] = value
 

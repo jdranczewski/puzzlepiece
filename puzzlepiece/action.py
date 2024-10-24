@@ -45,7 +45,7 @@ class Action(QtCore.QObject):
         Bool flag, indicates whether this action is visible as a button in the GUI.
         """
         return self._visible
-    
+
     def make_child_action(self):
         """
         Create and return a child action that calls the same callable.
