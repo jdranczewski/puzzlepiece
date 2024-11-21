@@ -480,6 +480,10 @@ class _Slider(QtWidgets.QWidget):
     def value(self):
         return self.input.value() * self._v_step
 
+    def blockSignals(self, b):
+        self.input.blockSignals(b)
+        super().blockSignals(b)
+
 
 class ParamSlider(ParamFloat):
     """
