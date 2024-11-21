@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtWidgets
+from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
 import math
 
@@ -278,6 +278,8 @@ class _QDialog(QtWidgets.QDialog):
     def __init__(self, parent, popup, *args, **kwargs):
         self.popup = popup
         super().__init__(parent, *args, **kwargs)
+        # Mark the Dialog for deletion once it is closed
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
 
     def closeEvent(self, event):
         self.popup.handle_close()

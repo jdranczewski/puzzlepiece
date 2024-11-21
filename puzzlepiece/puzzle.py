@@ -23,6 +23,8 @@ class Puzzle(QtWidgets.QWidget):
         self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
+        # Mark the Puzzle for deletion once it is closed
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
         self.app = app or QtWidgets.QApplication.instance()
