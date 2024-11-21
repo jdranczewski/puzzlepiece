@@ -1,4 +1,5 @@
 from qtpy import QtWidgets, QtCore, QtGui
+import inspect
 from functools import wraps
 import numpy as np
 
@@ -811,10 +812,13 @@ def wrap_setter(piece, setter):
     :meta private:
     """
     if setter is not None:
+        if "self" in inspect.signature(setter).parameters:
 
-        @wraps(setter)
-        def wrapper(value):
-            return setter(piece, value)
+            @wraps(setter)
+            def wrapper(value):
+                return setter(piece, value)
+        else:
+            wrapper = setter
     else:
         wrapper = None
     return wrapper
@@ -828,10 +832,13 @@ def wrap_getter(piece, getter):
     :meta private:
     """
     if getter is not None:
+        if "self" in inspect.signature(getter).parameters:
 
-        @wraps(getter)
-        def wrapper():
-            return getter(piece)
+            @wraps(getter)
+            def wrapper():
+                return getter(piece)
+        else:
+            wrapper = getter
     else:
         wrapper = None
     return wrapper
@@ -848,8 +855,8 @@ def base_param(piece, name, value, visible=True, format="{}"):
     To register a param and mark a function as its setter, do this::
 
         @puzzlepiece.param.base_param(self, 'param_name', 0)
-        def param_setter(self, value):
-            print(value)
+        def param_setter(value):
+            print(self, value)
 
     To register a param without a setter, call this function to get a decorator, and then pass ``None`` to that to indicate
     that a setter doesn't exist::
@@ -863,12 +870,20 @@ def base_param(piece, name, value, visible=True, format="{}"):
     and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
 
         @puzzlepiece.param.base_param(self, 'position', 0)
-        def position(self, value):
+        def position(value):
             self.sdk.set_position(value)
 
         @position.set_getter(self)
-        def position(self):
+        def position():
             return self.sdk.get_position()
+
+    It's also allowed to provide "self" as the first argument of the setter/getter method
+    for added clarity, but since self exists locally within :func:`~puzzlepiece.piece.Piece.define_params`
+    this is technically not required::
+
+        @puzzlepiece.param.base_param(self, 'param_name', 0)
+        def param_setter(self, value):
+            print(self, value)
 
     :param piece: The :class:`~puzzle.piece.Piece` this param should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_params`
