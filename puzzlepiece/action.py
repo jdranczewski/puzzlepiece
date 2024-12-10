@@ -1,6 +1,8 @@
 from pyqtgraph.Qt import QtCore
 import inspect
 
+from . import _snippets
+
 
 class Action(QtCore.QObject):
     """
@@ -102,6 +104,10 @@ def define(piece, name, shortcut=None, visible=True):
 
             def wrapper(*args, **kwargs):
                 return action(piece, *args, **kwargs)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{action.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
         else:
             wrapper = action
 

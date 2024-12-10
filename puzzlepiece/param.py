@@ -2,6 +2,8 @@ from qtpy import QtWidgets, QtCore, QtGui
 import inspect
 import numpy as np
 
+from . import _snippets
+
 
 _red_bg_palette = QtGui.QPalette()
 _red_bg_palette.setColor(
@@ -412,6 +414,7 @@ class ParamInt(BaseParam):
         return self.input.value()
 
     def make_child_param(self, kwargs=None):
+        """:meta private:"""
         return super().make_child_param(
             kwargs={
                 "v_min": self._v_min,
@@ -816,8 +819,13 @@ def wrap_setter(piece, setter):
     """
     if setter is not None:
         if "self" in inspect.signature(setter).parameters:
+
             def wrapper(value):
                 return setter(piece, value)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{setter.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
         else:
             wrapper = setter
     else:
@@ -834,8 +842,13 @@ def wrap_getter(piece, getter):
     """
     if getter is not None:
         if "self" in inspect.signature(getter).parameters:
+
             def wrapper():
                 return getter(piece)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{getter.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
         else:
             wrapper = getter
     else:

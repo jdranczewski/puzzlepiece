@@ -4,6 +4,7 @@ import inspect
 import math
 
 from .puzzle import PretendPuzzle
+from . import _snippets
 
 
 class Piece(QtWidgets.QGroupBox):
@@ -259,6 +260,9 @@ def ensurer(ensure_function):
                     ensure_function(self)
                     return main_function(*args, **kwargs)
 
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"{ensure_function.__name__}__{main_function.__name__}"
+            _snippets.update_function_name(wrapped_main, new_name)
             return wrapped_main
         else:
             # If main_function is None, ensure_decorator has been called
