@@ -1,5 +1,6 @@
 from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
+import inspect
 import math
 
 from .puzzle import PretendPuzzle
@@ -247,10 +248,16 @@ def ensurer(ensure_function):
             # This means ensure_decorator was used as a decorator, and
             # main_function is the function being decorated. We therefore
             # wrap it with the ensuring functionality and return it
-            @wraps(main_function)
-            def wrapped_main(self, *args, **kwargs):
-                ensure_function(self)
-                return main_function(self, *args, **kwargs)
+            if "self" in inspect.signature(main_function).parameters:
+
+                def wrapped_main(self, *args, **kwargs):
+                    ensure_function(self)
+                    return main_function(self, *args, **kwargs)
+            else:
+
+                def wrapped_main(self, *args, **kwargs):
+                    ensure_function(self)
+                    return main_function(*args, **kwargs)
 
             return wrapped_main
         else:
