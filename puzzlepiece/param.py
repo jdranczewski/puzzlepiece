@@ -1,6 +1,5 @@
 from qtpy import QtWidgets, QtCore, QtGui
 import inspect
-from functools import wraps
 import numpy as np
 
 
@@ -817,8 +816,6 @@ def wrap_setter(piece, setter):
     """
     if setter is not None:
         if "self" in inspect.signature(setter).parameters:
-
-            @wraps(setter)
             def wrapper(value):
                 return setter(piece, value)
         else:
@@ -837,8 +834,6 @@ def wrap_getter(piece, getter):
     """
     if getter is not None:
         if "self" in inspect.signature(getter).parameters:
-
-            @wraps(getter)
             def wrapper():
                 return getter(piece)
         else:

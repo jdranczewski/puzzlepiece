@@ -1,6 +1,5 @@
 from pyqtgraph.Qt import QtCore
 import inspect
-from functools import wraps
 
 
 class Action(QtCore.QObject):
@@ -101,7 +100,6 @@ def define(piece, name, shortcut=None, visible=True):
     def decorator(action):
         if "self" in inspect.signature(action).parameters:
 
-            @wraps(action)
             def wrapper(*args, **kwargs):
                 return action(piece, *args, **kwargs)
         else:
