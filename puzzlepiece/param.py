@@ -635,6 +635,7 @@ class ParamArray(BaseParam):
         super().__init__(
             name, value, setter, getter, visible, _type=_type, *args, **kwargs
         )
+        self.changed.connect(self._flip_indicator)
 
     @property
     def set_partial(self):
@@ -670,22 +671,10 @@ class ParamArray(BaseParam):
         """
         return self._value
 
-    def set_value(self, value=None):
-        """
-        This method overrides :func:`puzzlepiece.param.BaseParam.set_value`.
-        See there for documentation.
-
-        :meta private:
-        """
-        # Small check to account for the label being set twice
-        # in super().set_value(value) when the
-        # value argument is None
-        if value is not None:
-            self._indicator_state = not self._indicator_state
-        return super().set_value(value)
+    def _flip_indicator(self):
+        self._indicator_state = not self._indicator_state
 
     def _format_array(self, value):
-        self._indicator_state = not self._indicator_state
         return f"array{value.shape} {'◧' if self._indicator_state else '◨'}"
 
 
