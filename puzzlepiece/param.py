@@ -40,6 +40,8 @@ class BaseParam(QtWidgets.QWidget):
 
     #: A Qt signal emitted when the value changes
     changed = QtCore.Signal()
+    _sig_input_set_value = QtCore.Signal(object)
+    _sig_setAutoFillBackground = QtCore.Signal(bool)
     _type = None
 
     def __init__(
@@ -61,6 +63,7 @@ class BaseParam(QtWidgets.QWidget):
         self._value = None
         self._visible = visible
         self._format = format
+
         if _type is not None:
             self._type = _type
         if self._type is None:
@@ -91,7 +94,12 @@ class BaseParam(QtWidgets.QWidget):
             # Highlight that the setter or getter haven't been called yet
             self.setAutoFillBackground(True)
         layout.addWidget(self.input, 0, 1)
-        # self.set_value(value)
+
+        # Allow for setting the input value and background colour through a signal
+        # This allows us to make `set_value` and `get_value` thread-safe
+        # see https://github.com/jdranczewski/puzzlepiece/issues/7
+        self._sig_input_set_value.connect(self._input_set_value)
+        self._sig_setAutoFillBackground.connect(self.setAutoFillBackground)
 
         # Give it buttons for setting and getting the value
         if self._getter is not None:
@@ -149,11 +157,12 @@ class BaseParam(QtWidgets.QWidget):
         else:
             # Otherwise push the given value to the input
             value = self._type(value)
-            self._input_set_value(value)
+            self._sig_input_set_value.emit(value)
 
         if self._setter is not None:
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
+            new_value = self._type(new_value)
             if new_value is None:
                 # If the setter did not return a value, see if there is a getter
                 if self._getter is not None:
@@ -165,12 +174,12 @@ class BaseParam(QtWidgets.QWidget):
             # Update the value stored to the new value
             self._value = new_value
             # Update the input as well
-            self._input_set_value(new_value)
+            self._sig_input_set_value.emit(new_value)
         else:
             self._value = value
 
         # Clear the highlight and emit the changed signal
-        self.setAutoFillBackground(False)
+        self._sig_setAutoFillBackground.emit(False)
         self.changed.emit()
         return self._value
 
@@ -188,8 +197,8 @@ class BaseParam(QtWidgets.QWidget):
             self._value = new_value
 
             # Set the value to the input and emit signal if needed
-            self._input_set_value(new_value)
-            self.setAutoFillBackground(False)
+            self._sig_input_set_value.emit(new_value)
+            self._sig_setAutoFillBackground.emit(False)
             self.changed.emit()
 
             return new_value
