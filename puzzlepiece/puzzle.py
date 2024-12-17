@@ -117,14 +117,18 @@ class Puzzle(QtWidgets.QWidget):
     @property
     def globals(self):
         """
-        A dictionary, can be used for API modules that need to be shared by multiple Pieces.
+        A :class:`puzzlepiece.puzzle.Globals` object, effectively a dictionary,
+        can be used for API modules that need to be shared by multiple Pieces.
+
+        See :func:`puzzlepiece.puzzle.Globals.require` and
+        :func:`puzzlepiece.puzzle.Globals.release` for advanced use.
         """
         return self._globals
 
     @property
     def debug(self):
         """
-        A `bool` flag. Pieces should act in debug mode if `True`.
+        A `bool` flag set on Puzzle creation. Pieces should act in debug mode if `True`.
         """
         return self._debug
 
@@ -350,8 +354,9 @@ class Puzzle(QtWidgets.QWidget):
 
         def __save_export():
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
-            with open(fname, "w") as f:
-                f.write(text_box.toPlainText())
+            if len(fname):
+                with open(fname, "w") as f:
+                    f.write(text_box.toPlainText())
 
         button.clicked.connect(__save_export)
         layout.addWidget(button)

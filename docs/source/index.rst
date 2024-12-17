@@ -165,6 +165,7 @@ This documentation is meant as a good way to familiarise yourself with the libra
 
    modules
    tutorial
+   qa
 
 
 Indices and tables
