@@ -3,6 +3,7 @@ import inspect
 import numpy as np
 
 from . import _snippets
+from . import threads
 
 
 _red_bg_palette = QtGui.QPalette()
@@ -36,6 +37,7 @@ class BaseParam(QtWidgets.QWidget):
     :param format: Default format for displaying the param if a custom input is not defined, and in
       :func:`puzzplepiece.parse.format`. For example `{:.2f}`, see https://pyformat.info/ for further details.
     :param _type: int, float, str etc - the type of the param value. Can be inferred if a default value is passed.
+    :param piece: The parent Piece, can be None (currently only used for threaded sets and gets).
     """
 
     #: A Qt signal emitted when the value changes
@@ -53,6 +55,7 @@ class BaseParam(QtWidgets.QWidget):
         visible=True,
         format="{}",
         _type=None,
+        piece=None,
         *args,
         **kwargs,
     ):
@@ -63,6 +66,7 @@ class BaseParam(QtWidgets.QWidget):
         self._value = None
         self._visible = visible
         self._format = format
+        self._piece = piece
 
         if _type is not None:
             self._type = _type
@@ -114,8 +118,19 @@ class BaseParam(QtWidgets.QWidget):
             QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
         )
         self._set_button.setIcon(icon)
-        # Using a lambda as the clicked signal always passes False as the first argument
-        self._set_button.clicked.connect(lambda x: self.set_value())
+
+        # False always passed as the first argument
+        def set_callback(_):
+            if (
+                self._piece is not None
+                and self._piece.puzzle.app.keyboardModifiers()
+                == QtCore.Qt.KeyboardModifier.ControlModifier
+            ):
+                self.set_value_threaded()
+            else:
+                self.set_value()
+
+        self._set_button.clicked.connect(set_callback)
         self._main_layout.addWidget(self._set_button, 0, 3)
 
     def _make_get_button(self):
@@ -124,7 +139,18 @@ class BaseParam(QtWidgets.QWidget):
             QtWidgets.QStyle.StandardPixmap.SP_BrowserReload
         )
         self._get_button.setIcon(icon)
-        self._get_button.clicked.connect(lambda x: self.get_value())
+
+        def get_callback(_):
+            if (
+                self._piece is not None
+                and self._piece.puzzle.app.keyboardModifiers()
+                == QtCore.Qt.KeyboardModifier.ControlModifier
+            ):
+                self.get_value_threaded()
+            else:
+                self.get_value()
+
+        self._get_button.clicked.connect(get_callback)
         self._main_layout.addWidget(self._get_button, 0, 2)
 
     def _value_change_handler(self):
@@ -160,18 +186,19 @@ class BaseParam(QtWidgets.QWidget):
             self._sig_input_set_value.emit(value)
 
         if self._setter is not None:
+            # Colour the background to indicate setter is running
+            self._sig_setAutoFillBackground.emit(True)
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
-            new_value = self._type(new_value)
             if new_value is None:
                 # If the setter did not return a value, see if there is a getter
                 if self._getter is not None:
                     new_value = self._getter()
-                    new_value = self._type(new_value)
                 else:
                     # Otherwise the new value is just the value we're setting
                     new_value = value
             # Update the value stored to the new value
+            new_value = self._type(new_value)
             self._value = new_value
             # Update the input as well
             self._sig_input_set_value.emit(new_value)
@@ -204,6 +231,20 @@ class BaseParam(QtWidgets.QWidget):
             return new_value
         else:
             return self._value
+
+    def set_value_threaded(self, value=None):
+        if self._piece.puzzle is not None:
+            self._piece.puzzle.run_worker(threads.Worker(lambda: self.set_value(value)))
+        else:
+            self.set_value(value)
+
+    def get_value_threaded(self):
+        if self._piece.puzzle is not None:
+            # Colour the background to indicate getter is running
+            self._sig_setAutoFillBackground.emit(True)
+            self._piece.puzzle.run_worker(threads.Worker(lambda: self.get_value()))
+        else:
+            self.get_value()
 
     def set_setter(self, piece):
         """
@@ -366,7 +407,10 @@ class BaseParam(QtWidgets.QWidget):
             event.key() == QtCore.Qt.Key.Key_Enter
             or event.key() == QtCore.Qt.Key.Key_Return
         ):
-            self.set_value()
+            if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+                self.set_value_threaded()
+            else:
+                self.set_value()
             # Move focus out of the input, so other keyboard shortcuts can be processed
             self.setFocus()
         else:
@@ -915,7 +959,13 @@ def base_param(piece, name, value, visible=True, format="{}"):
 
         # Register the param with the Piece
         piece.params[name] = BaseParam(
-            name, value, setter=wrapper, getter=None, visible=visible, format=format
+            name,
+            value,
+            setter=wrapper,
+            getter=None,
+            visible=visible,
+            format=format,
+            piece=piece,
         )
 
         # Return the newly created Param
@@ -944,6 +994,7 @@ def readout(piece, name, visible=True, format="{}", _type=None):
             visible=visible,
             format=format,
             _type=_type,
+            piece=piece,
         )
         return piece.params[name]
 
@@ -979,10 +1030,11 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True, v_step=1):
                 getter=None,
                 visible=visible,
                 v_step=int(v_step),
+                piece=piece,
             )
         else:
             piece.params[name] = ParamFloat(
-                name, value, v_min, v_max, wrapper, None, visible, v_step
+                name, value, v_min, v_max, wrapper, None, visible, v_step, piece=piece
             )
         return piece.params[name]
 
@@ -1003,7 +1055,7 @@ def slider(piece, name, value, v_min=0, v_max=1, visible=True, v_step=0.05):
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
         piece.params[name] = ParamSlider(
-            name, value, v_min, v_max, wrapper, None, visible, v_step
+            name, value, v_min, v_max, wrapper, None, visible, v_step, piece=piece
         )
         return piece.params[name]
 
@@ -1022,7 +1074,7 @@ def text(piece, name, value, visible=True):
 
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
-        piece.params[name] = ParamText(name, value, wrapper, None, visible)
+        piece.params[name] = ParamText(name, value, wrapper, None, visible, piece=piece)
         return piece.params[name]
 
     return decorator
@@ -1044,7 +1096,9 @@ def checkbox(piece, name, value, visible=True):
 
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
-        piece.params[name] = ParamCheckbox(name, value, wrapper, None, visible)
+        piece.params[name] = ParamCheckbox(
+            name, value, wrapper, None, visible, piece=piece
+        )
         return piece.params[name]
 
     return decorator
@@ -1064,7 +1118,7 @@ def array(piece, name, visible=True):
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
         piece.params[name] = ParamArray(
-            name, None, setter=None, getter=wrapper, visible=visible
+            name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
 
@@ -1114,7 +1168,9 @@ def dropdown(piece, name, value, visible=True):
         if callable(values):
             # `values` can be a function that returns a list of values
             values = values(piece)
-        piece.params[name] = ParamDropdown(name, value, values, None, None, visible)
+        piece.params[name] = ParamDropdown(
+            name, value, values, None, None, visible, piece=piece
+        )
         return piece.params[name]
 
     return decorator
@@ -1133,7 +1189,7 @@ def progress(piece, name, visible=True):
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
         piece.params[name] = ParamProgress(
-            name, None, setter=None, getter=wrapper, visible=visible
+            name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
 

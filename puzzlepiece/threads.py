@@ -167,7 +167,7 @@ class PuzzleTimer(QtWidgets.QWidget):
 
     Can be added in :func:`puzzlepiece.piece.Piece.custom_layout` to enable live previews
     for cameras etc::
-    
+
         def custom_layout(self):
             layout = QtWidgets.QVBoxLayout()
 
