@@ -63,9 +63,14 @@ class Worker(QtCore.QRunnable):
     Note that :func:`puzzlepiece.param.BaseParam.get_value` and
     :func:`puzzlepiece.param.BaseParam.set_value` are thread-safe by default, so you can use
     these within Workers, but be *very* careful about interacting with other UI components from
-    inside threads - in general you should not do it, as it can cause complete crashes. Make sure
-    your getters and setters don't interact with the GUI either to make them thread-safe -
-    connect to the :attr:`puzzlepiece.param.BaseParam.changed`: Signal instead.
+    inside threads - in general you should not do it, as it can cause complete crashes. Generally
+    your getters and setters should not interact with the GUI either to make them thread-safe-ish -
+    connect to the :attr:`puzzlepiece.param.BaseParam.changed` Signal for plot updates instead,
+    especially if you foresee the params being used in Workers.
+
+    Even if you do not interact with GUI components from the threads, be careful of how you
+    schedule things to run - for example trying to set an exposure time on a camera *while*
+    a frame acquisition is in progress could result in an error or crash.
 
     To run a function in a thread::
 

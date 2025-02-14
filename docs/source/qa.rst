@@ -30,3 +30,36 @@ Once that is done for the various bits of equipment you have, you can access you
 setup through the same, modular interface! So there's some upfront time investment, but that's
 generally true for creating any GUI/hardware interface, and after that in my experience
 using your setup is much more smooth.
+
+Should I use threads?
++++++++++++++++++++++
+You can! But think carefully about where and how exactly these should be used. Most things
+in puzzlepiece are single-threaded *on purpose*, so that we can guarantee an execution order
+for the function calls you make. Set the moving stage, then adjust the projected image, and then
+take a picture with the camera - no race conditions, just sequential execution. This means
+the GUI will freeze during some actions, but this can be considered a feature - something
+is happening, and so we will wait for it to finish before doing anything else or told
+explicitly to refresh. This way you have a high degree of control over how things happen.
+
+If you *do* want to update the GUI during a main thread process, call
+:func:`puzzlepiece.puzzle.Puzzle.process_events` - this will return control to the GUI loop
+for a bit, so plots can be drawn, button presses and keybord shortcuts processed. This can
+be good, as it allows for live-ish updates, and stopping the process using the stop button,
+but introduces a little bit of unpredictability - what if the user changes something?
+
+For things that are not critical to run sequentially and which benefit from not freezing
+the GUI, have a look at :mod:`puzzlepiece.threads` - for example,
+:class:`puzzlepiece.threads.PuzzleTimer` is a Widget that lets you run an action repeatedly
+in a background thread (like get an image from a camera for a live preview), and
+:class:`puzzlepiece.threads.Worker` is a nice abstration for putting more generic tasks in
+threads.
+
+The :func:`puzzlepiece.param.BaseParam.get_value` and :func:`puzzlepiece.param.BaseParam.set_value`
+methods are thread-safe by default, so can be used to safely update the GUI (progress bar for 
+example) from a Worker thread. Have a look at :class:`puzzlepiece.threads.Worker`
+for a more detailed discussion of this.
+
+You can also control-click on the buttons in the GUI (or press control+enter) to set/get values
+in a thread, though do that at your own risk - if you press get twice for example during a camera
+exposure, the manufacturer's API may get confused. This is best used for independent things - say
+you want to keep the camera running while you set the position of a moving stage.
