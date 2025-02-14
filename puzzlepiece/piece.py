@@ -297,6 +297,16 @@ class _QDialog(QtWidgets.QDialog):
         self.popup.parent_piece.puzzle._close_popups.disconnect(self.accept)
         super().closeEvent(event)
 
+    def keyPressEvent(self, event):
+        """
+        Pass down keypress events to the Popup and the Puzzle.
+        Overwrites a QT method.
+
+        :meta private:
+        """
+        self.popup.handle_shortcut(event)
+        self.popup.parent_piece.puzzle.keyPressEvent(event)
+
 
 class Popup(Piece):
     """
@@ -316,6 +326,9 @@ class Popup(Piece):
     A Popup can have params, actions, and custom layouts just like a normal Piece, and are created by
     overriding :func:`~puzzlepiece.piece.Piece.define_params`, :func:`~puzzlepiece.piece.Piece.define_actions`,
     and :func:`~puzzlepiece.piece.Piece.custom_layout` like for a Piece.
+
+    You can access the QDialog the Popup resides in by using its ``parent()`` method (a general method
+    that all QWidgets have).
 
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
     :param parent_piece: The parent :class:`~puzzlepiece.piece.Piece`.
@@ -364,7 +377,11 @@ class Popup(Piece):
         for name in action_names:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
-    # TODO: A way to close the Popup from 'within'
+    def close(self):
+        """
+        Close the popup.
+        """
+        self.parent().accept()
 
     def handle_close(self):
         """
