@@ -531,6 +531,8 @@ class _Slider(QtWidgets.QWidget):
 
     def setValue(self, value):
         self.input.setValue(int(np.round(value / self._v_step)))
+        # Label should work in situations where the Signals are blocked too
+        self._set_label()
 
     def value(self):
         return self.input.value() * self._v_step

@@ -38,10 +38,10 @@ class Piece(QtWidgets.QGroupBox):
         if not self.puzzle.debug:
             self.setup()
 
+        self.folder = None
         self.define_params()
         self.define_readouts()
         self.define_actions()
-        self.folder = None
 
         if custom_horizontal:
             self.layout = QtWidgets.QHBoxLayout()

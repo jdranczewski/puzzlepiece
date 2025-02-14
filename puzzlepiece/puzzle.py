@@ -465,7 +465,8 @@ class Puzzle(QtWidgets.QWidget):
 
         :meta private:
         """
-        self._shutdown_threads.emit()
+        # self._shutdown_threads.emit()
+        self._call_stop()
         self._close_popups.emit()
 
         if not self.debug:
