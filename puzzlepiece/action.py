@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtCore
+from qtpy import QtCore
 import inspect
 
 from . import _snippets
@@ -16,6 +16,7 @@ class Action(QtCore.QObject):
     Any arguments provided when calling an action will be passed to the registered function.
 
     To register an action, use the :func:`~puzzlepiece.action.define` decorator as shown below.
+    The action will return the values your function returns.
 
     :param function: The function to call when the action is executed.
     :param parent: The Piece this action belongs to.
@@ -38,8 +39,9 @@ class Action(QtCore.QObject):
     def __call__(self, *args, **kwargs):
         # Bring the Piece into view if in a folder
         self.parent.elevate()
-        self.function(*args, **kwargs)
+        result = self.function(*args, **kwargs)
         self.called.emit()
+        return result
 
     @property
     def visible(self):
