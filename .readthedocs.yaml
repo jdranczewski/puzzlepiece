@@ -1,8 +1,5 @@
 version: "2"
 
-sphinx:
-  configuration: docs/source/conf.py
-
 build:
   os: "ubuntu-22.04"
   tools:
@@ -15,4 +12,5 @@ python:
       path: .
 
 sphinx:
+  configuration: docs/source/conf.py
   fail_on_warning: true
