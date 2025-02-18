@@ -11,6 +11,36 @@ Absolutely! It was created with experiment automation in mind, but the param/act
 abstractions are widely applicable, and I've been using puzzlepiece to rapidly
 create GUI tools for all sorts of things.
 
+Why puzzlepiece?
+++++++++++++++++
+A number of other experiment automation frameworks exists of course. puzzlepiece was
+born from a desire for a solution that makes the GUI a core priority, while still
+providing a unified, convenient API for accessing hardware through code.
+
+I think the balance I've landed on is pretty good, and it does technically allow
+you to use puzzlepiece as the GUI frontend to other automation frameworks.
+
+Here are some features that I count as the core ideas of puzzlepiece:
+
+* Pre-made widgets allow for rapid GUI prototyping, while giving you a unified API
+  "for free".
+* Effortless modularity - you can divide your problem into many Pieces, and they can
+  easily communicate with each other through the Puzzle. If parts of your problem
+  change, add new Pieces or sub-class the existing ones!
+* Quick and easy to set up with Jupyter Notebooks, which is incredibly powerful both
+  for development and use - align your experiment using the GUI, but define measurements
+  in code for example.
+* Useful beyond the lab. I've been using puzzlepiece whenever I need to create a GUI
+  tool. I find it's the quickest way to throw together Qt apps, or modules that can
+  all talk to each other.
+* Not very opinionated - the core abstraction of puzzlepiece (Pieces with params and
+  actions) is meant to be flexible - you design your app and how it should work, we
+  provide and standardise the parts that would be tedious to write manually.
+* Good for beginners once set up. Many experiments require people who would prefer not
+  to have to touch Python to operate them. You can create neat GUIs for them! And for
+  the next steps, the ``get_value``/``set_value`` paradigm is an intuitive way to
+  interact with hardware and makes for easier coding.
+
 How does puzzlepiece talk to experimental hardware?
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 Puzzlepiece itself doesn't! The goal of this library is to provide you with a
