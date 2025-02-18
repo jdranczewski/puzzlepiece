@@ -1,5 +1,7 @@
-from pyqtgraph.Qt import QtCore
-from functools import wraps
+from qtpy import QtCore
+import inspect
+
+from . import _snippets
 
 
 class Action(QtCore.QObject):
@@ -14,6 +16,7 @@ class Action(QtCore.QObject):
     Any arguments provided when calling an action will be passed to the registered function.
 
     To register an action, use the :func:`~puzzlepiece.action.define` decorator as shown below.
+    The action will return the values your function returns.
 
     :param function: The function to call when the action is executed.
     :param parent: The Piece this action belongs to.
@@ -36,8 +39,9 @@ class Action(QtCore.QObject):
     def __call__(self, *args, **kwargs):
         # Bring the Piece into view if in a folder
         self.parent.elevate()
-        self.function(*args, **kwargs)
+        result = self.function(*args, **kwargs)
         self.called.emit()
+        return result
 
     @property
     def visible(self):
@@ -60,13 +64,34 @@ class Action(QtCore.QObject):
 def define(piece, name, shortcut=None, visible=True):
     """
     A decorator generator for registering a :class:`~puzzlepiece.action.Action` in a Piece's
-    :func:`~puzzlepiece.piece.Piece.define_action` method with a given function.
+    :func:`~puzzlepiece.piece.Piece.define_actions` method with a given function.
 
     To register an action for a function, do this::
 
         @puzzlepiece.action.define(self, 'action_name')
+        def action():
+            print(f"Hello world from {self}!")
+
+    It's also allowed to provide "self" as the first argument of the action method
+    for added clarity, but since self exists locally within :func:`~puzzlepiece.piece.Piece.define_actions`
+    this is technically not required::
+
+        @puzzlepiece.action.define(self, 'action_name')
         def action(self):
-            print("Hello world!")
+            print(f"Hello world from {self}!")
+
+    The method you're decorating can take arguments, but all should in general be optional, as invoking
+    the actio with a GUI button will not provide arguments to it::
+
+        @puzzlepiece.action.define(self, 'Say Hello')
+        def say_hello(name="test user"):
+            print(f"Hello {name}}!")
+
+    This can be invoked as::
+
+        puzzle["piece_name"].actions["Say Hello"]()
+        puzzle["piece_name"].actions["Say Hello"]("another user")
+        puzzle["piece_name"].actions["Say Hello"](name="another user")
 
     :param piece: The :class:`~puzzle.piece.Piece` this param should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_actions`
@@ -77,9 +102,16 @@ def define(piece, name, shortcut=None, visible=True):
     """
 
     def decorator(action):
-        @wraps(action)
-        def wrapper(*args, **kwargs):
-            return action(piece, *args, **kwargs)
+        if "self" in inspect.signature(action).parameters:
+
+            def wrapper(*args, **kwargs):
+                return action(piece, *args, **kwargs)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{action.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
+        else:
+            wrapper = action
 
         action_object = Action(wrapper, piece, shortcut, visible)
         piece.actions[name] = action_object

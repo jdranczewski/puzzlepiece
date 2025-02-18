@@ -16,17 +16,15 @@ class Piece(pzp.Piece):
         # In that case we make the function (which takes a value) and decorate it with
         # a param-defining decorator
         @pzp.param.spinbox(self, "seed", 0)
-        def seed(self, value):
+        def seed(value):
             random.seed(value)
 
         # Some params have a 'getter' function, which returns a value, like a powermeter's reading
         # In that case we make the function (which returns a value) and decorate it with
         # a readout-param-defining decorator
         @pzp.param.readout(self, "number")
-        def random_number(self):
-            return random.randint(
-                self.params["min"].get_value(), self.params["max"].get_value()
-            )
+        def random_number():
+            return random.randint(self["min"].get_value(), self["max"].get_value())
 
     # We give it 'actions' within this function (these will appear as buttons)
     def define_actions(self):
@@ -34,7 +32,7 @@ class Piece(pzp.Piece):
         # In that case we make the function (which performs the action) and decorate it with
         # an action-defining decorator
         @pzp.action.define(self, "Dialog")
-        def print_something(self):
+        def print_something():
             pzp.parse.run(
                 "prompt:In a range between {random:min} and {random:max}, your number is {random:number}",
                 self.puzzle,

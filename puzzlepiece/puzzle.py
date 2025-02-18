@@ -23,6 +23,8 @@ class Puzzle(QtWidgets.QWidget):
         self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
+        # Mark the Puzzle for deletion once it is closed
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
         self.app = app or QtWidgets.QApplication.instance()
@@ -115,14 +117,18 @@ class Puzzle(QtWidgets.QWidget):
     @property
     def globals(self):
         """
-        A dictionary, can be used for API modules that need to be shared by multiple Pieces.
+        A :class:`puzzlepiece.puzzle.Globals` object, effectively a dictionary,
+        can be used for API modules that need to be shared by multiple Pieces.
+
+        See :func:`puzzlepiece.puzzle.Globals.require` and
+        :func:`puzzlepiece.puzzle.Globals.release` for advanced use.
         """
         return self._globals
 
     @property
     def debug(self):
         """
-        A `bool` flag. Pieces should act in debug mode if `True`.
+        A `bool` flag set on Puzzle creation. Pieces should act in debug mode if `True`.
         """
         return self._debug
 
@@ -348,8 +354,9 @@ class Puzzle(QtWidgets.QWidget):
 
         def __save_export():
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
-            with open(fname, "w") as f:
-                f.write(text_box.toPlainText())
+            if len(fname):
+                with open(fname, "w") as f:
+                    f.write(text_box.toPlainText())
 
         button.clicked.connect(__save_export)
         layout.addWidget(button)
@@ -458,7 +465,8 @@ class Puzzle(QtWidgets.QWidget):
 
         :meta private:
         """
-        self._shutdown_threads.emit()
+        # self._shutdown_threads.emit()
+        self._call_stop()
         self._close_popups.emit()
 
         if not self.debug:

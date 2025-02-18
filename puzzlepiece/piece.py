@@ -1,8 +1,10 @@
-from pyqtgraph.Qt import QtWidgets
+from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
+import inspect
 import math
 
 from .puzzle import PretendPuzzle
+from . import _snippets
 
 
 class Piece(QtWidgets.QGroupBox):
@@ -36,10 +38,10 @@ class Piece(QtWidgets.QGroupBox):
         if not self.puzzle.debug:
             self.setup()
 
+        self.folder = None
         self.define_params()
         self.define_readouts()
         self.define_actions()
-        self.folder = None
 
         if custom_horizontal:
             self.layout = QtWidgets.QHBoxLayout()
@@ -247,11 +249,20 @@ def ensurer(ensure_function):
             # This means ensure_decorator was used as a decorator, and
             # main_function is the function being decorated. We therefore
             # wrap it with the ensuring functionality and return it
-            @wraps(main_function)
-            def wrapped_main(self, *args, **kwargs):
-                ensure_function(self)
-                return main_function(self, *args, **kwargs)
+            if "self" in inspect.signature(main_function).parameters:
 
+                def wrapped_main(self, *args, **kwargs):
+                    ensure_function(self)
+                    return main_function(self, *args, **kwargs)
+            else:
+
+                def wrapped_main(self, *args, **kwargs):
+                    ensure_function(self)
+                    return main_function(*args, **kwargs)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"{ensure_function.__name__}__{main_function.__name__}"
+            _snippets.update_function_name(wrapped_main, new_name)
             return wrapped_main
         else:
             # If main_function is None, ensure_decorator has been called
@@ -278,11 +289,23 @@ class _QDialog(QtWidgets.QDialog):
     def __init__(self, parent, popup, *args, **kwargs):
         self.popup = popup
         super().__init__(parent, *args, **kwargs)
+        # Mark the Dialog for deletion once it is closed
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
 
     def closeEvent(self, event):
         self.popup.handle_close()
         self.popup.parent_piece.puzzle._close_popups.disconnect(self.accept)
         super().closeEvent(event)
+
+    def keyPressEvent(self, event):
+        """
+        Pass down keypress events to the Popup and the Puzzle.
+        Overwrites a QT method.
+
+        :meta private:
+        """
+        self.popup.handle_shortcut(event)
+        self.popup.parent_piece.puzzle.keyPressEvent(event)
 
 
 class Popup(Piece):
@@ -303,6 +326,9 @@ class Popup(Piece):
     A Popup can have params, actions, and custom layouts just like a normal Piece, and are created by
     overriding :func:`~puzzlepiece.piece.Piece.define_params`, :func:`~puzzlepiece.piece.Piece.define_actions`,
     and :func:`~puzzlepiece.piece.Piece.custom_layout` like for a Piece.
+
+    You can access the QDialog the Popup resides in by using its ``parent()`` method (a general method
+    that all QWidgets have).
 
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
     :param parent_piece: The parent :class:`~puzzlepiece.piece.Piece`.
@@ -351,7 +377,11 @@ class Popup(Piece):
         for name in action_names:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
-    # TODO: A way to close the Popup from 'within'
+    def close(self):
+        """
+        Close the popup.
+        """
+        self.parent().accept()
 
     def handle_close(self):
         """

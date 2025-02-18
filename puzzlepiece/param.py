@@ -1,6 +1,9 @@
 from qtpy import QtWidgets, QtCore, QtGui
-from functools import wraps
+import inspect
 import numpy as np
+
+from . import _snippets
+from . import threads
 
 
 _red_bg_palette = QtGui.QPalette()
@@ -34,10 +37,13 @@ class BaseParam(QtWidgets.QWidget):
     :param format: Default format for displaying the param if a custom input is not defined, and in
       :func:`puzzplepiece.parse.format`. For example `{:.2f}`, see https://pyformat.info/ for further details.
     :param _type: int, float, str etc - the type of the param value. Can be inferred if a default value is passed.
+    :param piece: The parent Piece, can be None (currently only used for threaded sets and gets).
     """
 
     #: A Qt signal emitted when the value changes
     changed = QtCore.Signal()
+    _sig_input_set_value = QtCore.Signal(object)
+    _sig_setAutoFillBackground = QtCore.Signal(bool)
     _type = None
 
     def __init__(
@@ -49,6 +55,7 @@ class BaseParam(QtWidgets.QWidget):
         visible=True,
         format="{}",
         _type=None,
+        piece=None,
         *args,
         **kwargs,
     ):
@@ -59,6 +66,8 @@ class BaseParam(QtWidgets.QWidget):
         self._value = None
         self._visible = visible
         self._format = format
+        self._piece = piece
+
         if _type is not None:
             self._type = _type
         if self._type is None:
@@ -89,7 +98,12 @@ class BaseParam(QtWidgets.QWidget):
             # Highlight that the setter or getter haven't been called yet
             self.setAutoFillBackground(True)
         layout.addWidget(self.input, 0, 1)
-        # self.set_value(value)
+
+        # Allow for setting the input value and background colour through a signal
+        # This allows us to make `set_value` and `get_value` thread-safe
+        # see https://github.com/jdranczewski/puzzlepiece/issues/7
+        self._sig_input_set_value.connect(self._input_set_value)
+        self._sig_setAutoFillBackground.connect(self.setAutoFillBackground)
 
         # Give it buttons for setting and getting the value
         if self._getter is not None:
@@ -104,8 +118,19 @@ class BaseParam(QtWidgets.QWidget):
             QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
         )
         self._set_button.setIcon(icon)
-        # Using a lambda as the clicked signal always passes False as the first argument
-        self._set_button.clicked.connect(lambda x: self.set_value())
+
+        # False always passed as the first argument
+        def set_callback(_):
+            if (
+                self._piece is not None
+                and self._piece.puzzle.app.keyboardModifiers()
+                == QtCore.Qt.KeyboardModifier.ControlModifier
+            ):
+                self.set_value_threaded()
+            else:
+                self.set_value()
+
+        self._set_button.clicked.connect(set_callback)
         self._main_layout.addWidget(self._set_button, 0, 3)
 
     def _make_get_button(self):
@@ -114,7 +139,18 @@ class BaseParam(QtWidgets.QWidget):
             QtWidgets.QStyle.StandardPixmap.SP_BrowserReload
         )
         self._get_button.setIcon(icon)
-        self._get_button.clicked.connect(lambda x: self.get_value())
+
+        def get_callback(_):
+            if (
+                self._piece is not None
+                and self._piece.puzzle.app.keyboardModifiers()
+                == QtCore.Qt.KeyboardModifier.ControlModifier
+            ):
+                self.get_value_threaded()
+            else:
+                self.get_value()
+
+        self._get_button.clicked.connect(get_callback)
         self._main_layout.addWidget(self._get_button, 0, 2)
 
     def _value_change_handler(self):
@@ -147,28 +183,30 @@ class BaseParam(QtWidgets.QWidget):
         else:
             # Otherwise push the given value to the input
             value = self._type(value)
-            self._input_set_value(value)
+            self._sig_input_set_value.emit(value)
 
         if self._setter is not None:
+            # Colour the background to indicate setter is running
+            self._sig_setAutoFillBackground.emit(True)
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
             if new_value is None:
                 # If the setter did not return a value, see if there is a getter
                 if self._getter is not None:
                     new_value = self._getter()
-                    new_value = self._type(new_value)
                 else:
                     # Otherwise the new value is just the value we're setting
                     new_value = value
             # Update the value stored to the new value
+            new_value = self._type(new_value)
             self._value = new_value
             # Update the input as well
-            self._input_set_value(new_value)
+            self._sig_input_set_value.emit(new_value)
         else:
             self._value = value
 
         # Clear the highlight and emit the changed signal
-        self.setAutoFillBackground(False)
+        self._sig_setAutoFillBackground.emit(False)
         self.changed.emit()
         return self._value
 
@@ -186,13 +224,45 @@ class BaseParam(QtWidgets.QWidget):
             self._value = new_value
 
             # Set the value to the input and emit signal if needed
-            self._input_set_value(new_value)
-            self.setAutoFillBackground(False)
+            self._sig_input_set_value.emit(new_value)
+            self._sig_setAutoFillBackground.emit(False)
             self.changed.emit()
 
             return new_value
         else:
             return self._value
+
+    def set_value_threaded(self, value=None):
+        """
+        Call :func:`~puzzlepiece.param.BaseParam.set_value` in a thread. While
+        :func:`~puzzlepiece.param.BaseParam.set_value` itself is by default threadsafe,
+        the setter/getter may not be depending on the user's implementation. See
+        :ref:`puzzlepiece.threads` for further notes, and be mindful when using this.
+
+        Can also be called by holding control while clicking the set button or pressing
+        enter in a param's input box.
+        """
+        if self._piece.puzzle is not None:
+            self._piece.puzzle.run_worker(threads.Worker(lambda: self.set_value(value)))
+        else:
+            self.set_value(value)
+
+    def get_value_threaded(self):
+        """
+        Call :func:`~puzzlepiece.param.BaseParam.get_value` in a thread. While
+        :func:`~puzzlepiece.param.BaseParam.get_value` itself is by default threadsafe,
+        the getter may not be depending on the user's implementation. See
+        :ref:`puzzlepiece.threads` for further notes, and be mindful when using this.
+
+        Can also be called by holding control while clicking the set button or pressing
+        enter in a param's input box.
+        """
+        if self._piece.puzzle is not None:
+            # Colour the background to indicate getter is running
+            self._sig_setAutoFillBackground.emit(True)
+            self._piece.puzzle.run_worker(threads.Worker(lambda: self.get_value()))
+        else:
+            self.get_value()
 
     def set_setter(self, piece):
         """
@@ -355,7 +425,10 @@ class BaseParam(QtWidgets.QWidget):
             event.key() == QtCore.Qt.Key.Key_Enter
             or event.key() == QtCore.Qt.Key.Key_Return
         ):
-            self.set_value()
+            if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+                self.set_value_threaded()
+            else:
+                self.set_value()
             # Move focus out of the input, so other keyboard shortcuts can be processed
             self.setFocus()
         else:
@@ -412,6 +485,7 @@ class ParamInt(BaseParam):
         return self.input.value()
 
     def make_child_param(self, kwargs=None):
+        """:meta private:"""
         return super().make_child_param(
             kwargs={
                 "v_min": self._v_min,
@@ -475,9 +549,15 @@ class _Slider(QtWidgets.QWidget):
 
     def setValue(self, value):
         self.input.setValue(int(np.round(value / self._v_step)))
+        # Label should work in situations where the Signals are blocked too
+        self._set_label()
 
     def value(self):
         return self.input.value() * self._v_step
+
+    def blockSignals(self, b):
+        self.input.blockSignals(b)
+        super().blockSignals(b)
 
 
 class ParamSlider(ParamFloat):
@@ -619,6 +699,7 @@ class ParamArray(BaseParam):
         super().__init__(
             name, value, setter, getter, visible, _type=_type, *args, **kwargs
         )
+        self.changed.connect(self._flip_indicator)
 
     @property
     def set_partial(self):
@@ -654,22 +735,10 @@ class ParamArray(BaseParam):
         """
         return self._value
 
-    def set_value(self, value=None):
-        """
-        This method overrides :func:`puzzlepiece.param.BaseParam.set_value`.
-        See there for documentation.
-
-        :meta private:
-        """
-        # Small check to account for the label being set twice
-        # in super().set_value(value) when the
-        # value argument is None
-        if value is not None:
-            self._indicator_state = not self._indicator_state
-        return super().set_value(value)
+    def _flip_indicator(self):
+        self._indicator_state = not self._indicator_state
 
     def _format_array(self, value):
-        self._indicator_state = not self._indicator_state
         return f"array{value.shape} {'◧' if self._indicator_state else '◨'}"
 
 
@@ -811,10 +880,16 @@ def wrap_setter(piece, setter):
     :meta private:
     """
     if setter is not None:
+        if "self" in inspect.signature(setter).parameters:
 
-        @wraps(setter)
-        def wrapper(value):
-            return setter(piece, value)
+            def wrapper(value):
+                return setter(piece, value)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{setter.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
+        else:
+            wrapper = setter
     else:
         wrapper = None
     return wrapper
@@ -828,10 +903,16 @@ def wrap_getter(piece, getter):
     :meta private:
     """
     if getter is not None:
+        if "self" in inspect.signature(getter).parameters:
 
-        @wraps(getter)
-        def wrapper():
-            return getter(piece)
+            def wrapper():
+                return getter(piece)
+
+            # Update the wrapper's function name, so that it shows up in profile traces correctly.
+            new_name = f"wrap__{getter.__name__}"
+            _snippets.update_function_name(wrapper, new_name)
+        else:
+            wrapper = getter
     else:
         wrapper = None
     return wrapper
@@ -848,8 +929,8 @@ def base_param(piece, name, value, visible=True, format="{}"):
     To register a param and mark a function as its setter, do this::
 
         @puzzlepiece.param.base_param(self, 'param_name', 0)
-        def param_setter(self, value):
-            print(value)
+        def param_setter(value):
+            print(self, value)
 
     To register a param without a setter, call this function to get a decorator, and then pass ``None`` to that to indicate
     that a setter doesn't exist::
@@ -863,12 +944,20 @@ def base_param(piece, name, value, visible=True, format="{}"):
     and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
 
         @puzzlepiece.param.base_param(self, 'position', 0)
-        def position(self, value):
+        def position(value):
             self.sdk.set_position(value)
 
         @position.set_getter(self)
-        def position(self):
+        def position():
             return self.sdk.get_position()
+
+    It's also allowed to provide "self" as the first argument of the setter/getter method
+    for added clarity, but since self exists locally within :func:`~puzzlepiece.piece.Piece.define_params`
+    this is technically not required::
+
+        @puzzlepiece.param.base_param(self, 'param_name', 0)
+        def param_setter(self, value):
+            print(self, value)
 
     :param piece: The :class:`~puzzle.piece.Piece` this param should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_params`
@@ -890,7 +979,13 @@ def base_param(piece, name, value, visible=True, format="{}"):
 
         # Register the param with the Piece
         piece.params[name] = BaseParam(
-            name, value, setter=wrapper, getter=None, visible=visible, format=format
+            name,
+            value,
+            setter=wrapper,
+            getter=None,
+            visible=visible,
+            format=format,
+            piece=piece,
         )
 
         # Return the newly created Param
@@ -919,6 +1014,7 @@ def readout(piece, name, visible=True, format="{}", _type=None):
             visible=visible,
             format=format,
             _type=_type,
+            piece=piece,
         )
         return piece.params[name]
 
@@ -954,10 +1050,11 @@ def spinbox(piece, name, value, v_min=-1e9, v_max=1e9, visible=True, v_step=1):
                 getter=None,
                 visible=visible,
                 v_step=int(v_step),
+                piece=piece,
             )
         else:
             piece.params[name] = ParamFloat(
-                name, value, v_min, v_max, wrapper, None, visible, v_step
+                name, value, v_min, v_max, wrapper, None, visible, v_step, piece=piece
             )
         return piece.params[name]
 
@@ -978,7 +1075,7 @@ def slider(piece, name, value, v_min=0, v_max=1, visible=True, v_step=0.05):
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
         piece.params[name] = ParamSlider(
-            name, value, v_min, v_max, wrapper, None, visible, v_step
+            name, value, v_min, v_max, wrapper, None, visible, v_step, piece=piece
         )
         return piece.params[name]
 
@@ -997,7 +1094,7 @@ def text(piece, name, value, visible=True):
 
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
-        piece.params[name] = ParamText(name, value, wrapper, None, visible)
+        piece.params[name] = ParamText(name, value, wrapper, None, visible, piece=piece)
         return piece.params[name]
 
     return decorator
@@ -1019,7 +1116,9 @@ def checkbox(piece, name, value, visible=True):
 
     def decorator(setter):
         wrapper = wrap_setter(piece, setter)
-        piece.params[name] = ParamCheckbox(name, value, wrapper, None, visible)
+        piece.params[name] = ParamCheckbox(
+            name, value, wrapper, None, visible, piece=piece
+        )
         return piece.params[name]
 
     return decorator
@@ -1039,7 +1138,7 @@ def array(piece, name, visible=True):
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
         piece.params[name] = ParamArray(
-            name, None, setter=None, getter=wrapper, visible=visible
+            name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
 
@@ -1089,7 +1188,9 @@ def dropdown(piece, name, value, visible=True):
         if callable(values):
             # `values` can be a function that returns a list of values
             values = values(piece)
-        piece.params[name] = ParamDropdown(name, value, values, None, None, visible)
+        piece.params[name] = ParamDropdown(
+            name, value, values, None, None, visible, piece=piece
+        )
         return piece.params[name]
 
     return decorator
@@ -1108,7 +1209,7 @@ def progress(piece, name, visible=True):
     def decorator(getter):
         wrapper = wrap_getter(piece, getter)
         piece.params[name] = ParamProgress(
-            name, None, setter=None, getter=wrapper, visible=visible
+            name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
 

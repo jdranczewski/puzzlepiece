@@ -6,6 +6,8 @@
 Welcome to the puzzlepiece documentation!
 =========================================
 
+.. image:: puzzlepiece.svg
+
 **Puzzlepiece is a GUI-forward Python framework for automating experimental setups.** It focuses on abstracting communication
 with a piece of hardware into **standard inputs, outputs, and actions**. It then automatically **generates GUI components** for them,
 minimising the need for boilerplate code. Puzzlepiece allows the user to bring diverse controls into a single, consolidated application,
@@ -165,6 +167,7 @@ This documentation is meant as a good way to familiarise yourself with the libra
 
    modules
    tutorial
+   qa
 
 
 Indices and tables

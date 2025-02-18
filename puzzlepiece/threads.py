@@ -60,6 +60,27 @@ class Worker(QtCore.QRunnable):
     """
     Generic worker (QRunnable) that calls a function in a thread.
 
+    Note that :func:`puzzlepiece.param.BaseParam.get_value` and
+    :func:`puzzlepiece.param.BaseParam.set_value` are thread-safe by default, so you can use
+    these within Workers, but be *very* careful about interacting with other UI components from
+    inside threads - in general you should not do it, as it can cause complete crashes. Generally
+    your getters and setters should not interact with the GUI either to make them thread-safe-ish -
+    connect to the :attr:`puzzlepiece.param.BaseParam.changed` Signal for plot updates instead,
+    especially if you foresee the params being used in Workers.
+
+    Even if you do not interact with GUI components from the threads, be careful of how you
+    schedule things to run - for example trying to set an exposure time on a camera *while*
+    a frame acquisition is in progress could result in an error or crash.
+
+    To run a function in a thread::
+
+        worker = puzzlepiece.threads.Worker(long_function, args=(a,), kwargs={"b": "c"})
+        worker.returned.connect(lambda value: print(value))
+        puzzle.run_worker(worker)
+
+        # or, for short
+        puzzle.run_worker(puzzlepiece.threads.Worker(long_function))
+
     :param function: The function for the Worker to run.
     :param args: list of arguments to be forwarded to the function when run.
     :param kwargs: dictionary of keyword arguments to be forwarded to the function when run.
@@ -106,6 +127,7 @@ class LiveWorker(Worker):
 
     def __init__(self, function, sleep=0.1, args=None, kwargs=None):
         self.stopping = False
+        #: Amount of time to sleep between function executions. Can be changed while running.
         self.sleep = sleep
         super().__init__(function, args, kwargs)
         #: A Qt signal emitted each time the function returns, passes the returned value to the connected Slot.
@@ -143,10 +165,28 @@ class PuzzleTimer(QtWidgets.QWidget):
     """
     A Widget that displays a checkbox. When the checkbox is checked, an associated
     function is called repeatedly in a thread, separated by specified time intervals.
+    This way if the function takes a long time (like a camera exposure) it doesn't
+    lock up the main GUI thread.
+
+    Uses a :class:`~puzzlepiece.threads.LiveWorker` to implement this.
+
+    Can be added in :func:`puzzlepiece.piece.Piece.custom_layout` to enable live previews
+    for cameras etc::
+
+        def custom_layout(self):
+            layout = QtWidgets.QVBoxLayout()
+
+            timer = puzzlepiece.threads.PuzzleTimer('Live', self.puzzle, self["image"].get_value, 0.1)
+            layout.addWidget(self.timer)
+
+            # Add a pyqtgraph plot that updates when the `changed` Signal of the "image" param is emitted
+            # ...
+
+            return layout
 
     :param name: The display name for this PuzzleTimer.
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle` (needed as the Puzzle
-      is charged with the QThreadPool that runs the tasks).
+      manages the QThreadPool that runs the tasks).
     :param function: The function for the PuzzleTimer to run.
     :param sleep: Time to sleep between function calls in seconds.
     :param args: list of arguments to be forwarded to the function when run.
