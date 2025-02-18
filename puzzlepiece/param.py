@@ -237,7 +237,7 @@ class BaseParam(QtWidgets.QWidget):
         Call :func:`~puzzlepiece.param.BaseParam.set_value` in a thread. While
         :func:`~puzzlepiece.param.BaseParam.set_value` itself is by default threadsafe,
         the setter/getter may not be depending on the user's implementation. See
-        :ref:`puzzlepiece.threads` for further notes, and be mindful when using this.
+        :mod:`puzzlepiece.threads` for further notes, and be mindful when using this.
 
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
@@ -252,7 +252,7 @@ class BaseParam(QtWidgets.QWidget):
         Call :func:`~puzzlepiece.param.BaseParam.get_value` in a thread. While
         :func:`~puzzlepiece.param.BaseParam.get_value` itself is by default threadsafe,
         the getter may not be depending on the user's implementation. See
-        :ref:`puzzlepiece.threads` for further notes, and be mindful when using this.
+        :mod:`puzzlepiece.threads` for further notes, and be mindful when using this.
 
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
