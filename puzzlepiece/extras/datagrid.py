@@ -1,6 +1,7 @@
 from qtpy import QtWidgets, QtCore
 
 import puzzlepiece as pzp
+from puzzlepiece.extras import pretend_puzzle
 
 
 class DataGrid(QtWidgets.QWidget):
@@ -27,7 +28,7 @@ class DataGrid(QtWidgets.QWidget):
     def __init__(self, row_class, puzzle=None, parent_piece=None):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+        self.puzzle = puzzle or pretend_puzzle.PretendPuzzle()
         self.parent_piece = parent_piece
         self._row_class = row_class
         row_example = row_class(self.puzzle)
@@ -146,7 +147,7 @@ class Row:
     """
 
     def __init__(self, parent=None, puzzle=None):
-        self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+        self.puzzle = puzzle or pretend_puzzle.PretendPuzzle()
         self.parent = parent
         #: dict: A dictionary of this Row's params (see :class:`~puzzlepiece.param.BaseParam`). You can also directly index the Row object with the param name.
         self.params = {}

@@ -1,7 +1,9 @@
 from qtpy import QtCore
 import inspect
 
-from . import _snippets
+from . import _snippets, piece
+
+import typing
 
 
 class Action(QtCore.QObject):
@@ -27,9 +29,15 @@ class Action(QtCore.QObject):
     #: A Qt signal emitted when the action is executed.
     called = QtCore.Signal()
 
-    def __init__(self, function, parent, shortcut=None, visible=True):
+    def __init__(
+        self,
+        function: typing.Callable,
+        parent: piece.Piece,
+        shortcut=None,
+        visible: bool = True,
+    ) -> None:
         self.function = function
-        self.parent = parent
+        self.parent_piece = parent
         #: Keyboard shortcut associated with the param.
         self.shortcut = shortcut
         # See https://doc.qt.io/qt-6/qt.html#Key-enum for acceptable values
@@ -38,7 +46,7 @@ class Action(QtCore.QObject):
 
     def __call__(self, *args, **kwargs):
         # Bring the Piece into view if in a folder
-        self.parent.elevate()
+        self.parent_piece.elevate()
         result = self.function(*args, **kwargs)
         self.called.emit()
         return result
@@ -57,7 +65,7 @@ class Action(QtCore.QObject):
         See :func:`puzzlepiece.piece.Popup.add_child_actions` for a quick way of adding child
         actions to a popup.
         """
-        child = Action(self.function, self.parent, self.shortcut)
+        child = Action(self.function, self.parent_piece, self.shortcut)
         return child
 
 

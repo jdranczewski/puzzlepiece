@@ -1,9 +1,9 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore
 from functools import wraps
 import inspect
 import math
 
-from .puzzle import PretendPuzzle
+from .extras import pretend_puzzle
 from . import _snippets
 
 
@@ -23,7 +23,7 @@ class Piece(QtWidgets.QGroupBox):
     def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle or PretendPuzzle()
+        self.puzzle = puzzle or pretend_puzzle.PretendPuzzle()
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
@@ -381,7 +381,10 @@ class Popup(Piece):
         """
         Close the popup.
         """
-        self.parent().accept()
+        if isinstance(parent := self.parent(), _QDialog):
+            parent.accept()
+        else:
+            super().close()
 
     def handle_close(self):
         """

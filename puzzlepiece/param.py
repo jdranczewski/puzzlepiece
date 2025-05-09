@@ -3,13 +3,19 @@ import inspect
 import numpy as np
 
 from . import _snippets
-from . import threads
+from . import threads, piece
+
+import typing
 
 
 _red_bg_palette = QtGui.QPalette()
 _red_bg_palette.setColor(
     _red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255)
 )
+
+
+def _default_type(_, x):
+    return x
 
 
 class BaseParam(QtWidgets.QWidget):
@@ -41,21 +47,21 @@ class BaseParam(QtWidgets.QWidget):
     """
 
     #: A Qt signal emitted when the value changes
-    changed = QtCore.Signal()
-    _sig_input_set_value = QtCore.Signal(object)
-    _sig_setAutoFillBackground = QtCore.Signal(bool)
-    _type = None
+    changed = QtCore.Signal()  # type: ignore
+    _sig_input_set_value = QtCore.Signal(object)  # type: ignore
+    _sig_setAutoFillBackground = QtCore.Signal(bool)  # type: ignore
+    _type = _default_type
 
     def __init__(
         self,
-        name,
-        value,
-        setter=None,
-        getter=None,
-        visible=True,
-        format="{}",
-        _type=None,
-        piece=None,
+        name: str,
+        value: typing.Any,
+        setter: typing.Callable | None = None,
+        getter: typing.Callable | None = None,
+        visible: bool = True,
+        format: str = "{}",
+        _type: typing.Callable | None = None,
+        piece: piece.Piece | None = None,
         *args,
         **kwargs,
     ):
@@ -70,7 +76,7 @@ class BaseParam(QtWidgets.QWidget):
 
         if _type is not None:
             self._type = _type
-        if self._type is None:
+        if self._type is _default_type:
             if value is not None:
                 # Infer type if not provided by subclassing
                 self._type = type(value)
@@ -242,7 +248,7 @@ class BaseParam(QtWidgets.QWidget):
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
         """
-        if self._piece.puzzle is not None:
+        if self._piece is not None:
             self._piece.puzzle.run_worker(threads.Worker(lambda: self.set_value(value)))
         else:
             self.set_value(value)
@@ -257,7 +263,7 @@ class BaseParam(QtWidgets.QWidget):
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
         """
-        if self._piece.puzzle is not None:
+        if self._piece is not None:
             # Colour the background to indicate getter is running
             self._sig_setAutoFillBackground.emit(True)
             self._piece.puzzle.run_worker(threads.Worker(lambda: self.get_value()))
@@ -302,7 +308,7 @@ class BaseParam(QtWidgets.QWidget):
         """
         return self._value
 
-    def _make_input(self, value=None, connect=None):
+    def _make_input(self, value=None, connect=None) -> tuple[QtWidgets.QWidget, bool]:
         """
         Create an input box for the GUI display of this param. This should be overriden to implement
         custom param display types (like the spinboxes, text inputs, and checkboxes provided by default).
@@ -333,7 +339,7 @@ class BaseParam(QtWidgets.QWidget):
 
         :meta public:
         """
-        self.input.setText(self._format.format(value))
+        self.input.setText(self._format.format(value))  # type: ignore
 
     def _input_get_value(self):
         """
@@ -344,7 +350,7 @@ class BaseParam(QtWidgets.QWidget):
 
         :meta public:
         """
-        return self._type(self.input.text())
+        return self._type(self.input.text())  # type: ignore
 
     def make_child_param(self, kwargs=None):
         """
@@ -477,12 +483,12 @@ class ParamInt(BaseParam):
     def _input_set_value(self, value):
         """:meta private:"""
         self.input.blockSignals(True)
-        self.input.setValue(value)
+        self.input.setValue(value)  # type: ignore
         self.input.blockSignals(False)
 
     def _input_get_value(self):
         """:meta private:"""
-        return self.input.value()
+        return self.input.value()  # type: ignore
 
     def make_child_param(self, kwargs=None):
         """:meta private:"""
@@ -605,12 +611,12 @@ class ParamText(BaseParam):
     def _input_set_value(self, value):
         """:meta private:"""
         self.input.blockSignals(True)
-        self.input.setText(value)
+        self.input.setText(value)  # type: ignore
         self.input.blockSignals(False)
 
     def _input_get_value(self):
         """:meta private:"""
-        return self.input.text()
+        return self.input.text()  # type: ignore
 
 
 class ParamCheckbox(BaseParam):
@@ -641,13 +647,13 @@ class ParamCheckbox(BaseParam):
 
     def _input_set_value(self, value):
         """:meta private:"""
-        self.input.setChecked(bool(value))
+        self.input.setChecked(bool(value))  # type: ignore
         # if self._connected_click_handler is not None:
         #     self._connected_click_handler()
 
     def _input_get_value(self):
         """:meta private:"""
-        return int(self.input.isChecked())
+        return int(self.input.isChecked())  # type: ignore
 
     def _click_handler(self, _):
         try:
@@ -658,7 +664,7 @@ class ParamCheckbox(BaseParam):
                 self.set_value()
         except Exception as e:
             # Flip back the checkbox if the click resulted in an error
-            self.input.setChecked(not (self.input.isChecked()))
+            self.input.setChecked(not (self.input.isChecked()))  # type: ignore
             raise e
 
 
@@ -727,7 +733,7 @@ class ParamArray(BaseParam):
         """
         :meta private:
         """
-        self.input.setText(self._format_array(value))
+        self.input.setText(self._format_array(value))  # type: ignore
 
     def _input_get_value(self):
         """
@@ -775,7 +781,8 @@ class ParamDropdown(BaseParam):
 
     def _make_input(self, value=None, connect=None):
         """:meta private:"""
-        input = QtWidgets.QComboBox(editable=True)
+        input = QtWidgets.QComboBox()
+        input.setEditable(True)
 
         # Add the possible values
         input.addItems([str(x) for x in self._values])
@@ -797,16 +804,16 @@ class ParamDropdown(BaseParam):
         value = str(value)
         self.input.blockSignals(True)
 
-        if index := self.input.findData(value) > -1:
-            self.input.setCurrentIndex(index)
+        if index := self.input.findData(value) > -1:  # type: ignore
+            self.input.setCurrentIndex(index)  # type: ignore
         else:
-            self.input.setCurrentText(value)
+            self.input.setCurrentText(value)  # type: ignore
 
         self.input.blockSignals(False)
 
     def _input_get_value(self):
         """:meta private:"""
-        return self.input.currentText()
+        return self.input.currentText()  # type: ignore
 
     def make_child_param(self, kwargs=None):
         return super().make_child_param(
@@ -836,14 +843,14 @@ class ParamProgress(BaseParam):
     def _input_set_value(self, value):
         """:meta private:"""
         if value < 0:
-            self.input.setMaximum(0)
+            self.input.setMaximum(0)  # type: ignore
         else:
-            self.input.setMaximum(1000)
-            self.input.setValue(int(value * 1000))
+            self.input.setMaximum(1000)  # type: ignore
+            self.input.setValue(int(value * 1000))  # type: ignore
 
     def _input_get_value(self):
         """:meta private:"""
-        return self.input.value()
+        return self.input.value()  # type: ignore
 
     def iter(self, iterable):
         """
@@ -872,7 +879,9 @@ class ParamProgress(BaseParam):
         self.set_value(1)
 
 
-def wrap_setter(piece, setter):
+def wrap_setter(
+    piece: piece.Piece, setter: typing.Callable | None
+) -> typing.Callable | None:
     """
     We wrap the setter function such that it can be called without passing
     a reference to the Piece as the first argument
@@ -890,12 +899,14 @@ def wrap_setter(piece, setter):
             _snippets.update_function_name(wrapper, new_name)
         else:
             wrapper = setter
+        return wrapper
     else:
-        wrapper = None
-    return wrapper
+        return None
 
 
-def wrap_getter(piece, getter):
+def wrap_getter(
+    piece: piece.Piece, getter: typing.Callable | None
+) -> typing.Callable | None:
     """
     We wrap the getter function such that it can be called without passing
     a reference to the Piece as the first argument
@@ -913,9 +924,9 @@ def wrap_getter(piece, getter):
             _snippets.update_function_name(wrapper, new_name)
         else:
             wrapper = getter
+        return wrapper
     else:
-        wrapper = None
-    return wrapper
+        return None
 
 
 # The decorator syntax in Python is a little confusing
