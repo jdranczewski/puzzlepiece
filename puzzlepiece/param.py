@@ -1154,7 +1154,7 @@ def dropdown(piece, name, value, visible=True):
     for example::
 
         @puzzlepiece.param.dropdown(self, 'param_name', '')
-        def param_values(self, value):
+        def param_values():
             return self.sdk.discover_devices()
 
     It can also be used with a set list of defaults, or with no defaults at all::
@@ -1166,15 +1166,15 @@ def dropdown(piece, name, value, visible=True):
     and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
 
         @puzzlepiece.param.dropdown(self, 'serial_number', '')
-        def serial_number(self, value):
+        def serial_number():
             return self.sdk.discover_devices()
 
         @serial_number.set_getter(self)
-        def serial_number(self):
+        def serial_number():
             return self.sdk.get_serial()
 
         @serial_number.set_setter(self)
-        def serial_number(self, value):
+        def serial_number(value):
             return self.sdk.set_serial(value)
 
     The returned param displays a dropdown and stores a string. The user can edit the dropdown's
@@ -1187,7 +1187,10 @@ def dropdown(piece, name, value, visible=True):
     def decorator(values):
         if callable(values):
             # `values` can be a function that returns a list of values
-            values = values(piece)
+            if "self" in inspect.signature(values).parameters:
+                values = values(piece)
+            else:
+                values = values()
         piece.params[name] = ParamDropdown(
             name, value, values, None, None, visible, piece=piece
         )
