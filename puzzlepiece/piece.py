@@ -148,20 +148,28 @@ class Piece(QtWidgets.QGroupBox):
         popup.setStyleSheet("QGroupBox {border:0;}")
 
         # Make a dialog window for the popup to live in
-        dialog = _QDialog(self, popup, modal)
+        dialog = _QDialog(self if modal else None, popup)
         layout = QtWidgets.QVBoxLayout()
         dialog.setLayout(layout)
         layout.addWidget(popup)
         dialog.setWindowTitle(name or "Popup")
+
+        # Add buttons to non-modal windows
+        if not modal:
+            dialog.setWindowFlags(
+                dialog.windowFlags()
+                | QtCore.Qt.WindowType.WindowMinimizeButtonHint
+                | QtCore.Qt.WindowType.WindowMaximizeButtonHint
+            )
 
         if not hasattr(self, "_popups"):
             self._popups = []
         self._popups.append(dialog)
 
         # Display the dialog
-        # dialog.show()
-        # dialog.raise_()
-        # dialog.activateWindow()
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
         self.puzzle._close_popups.connect(dialog.accept)
 
         return popup
@@ -293,40 +301,14 @@ class _QDialog(QtWidgets.QDialog):
     with a custom function.
     """
 
-    def __init__(self, parent, popup, modal, *args, **kwargs):
+    def __init__(self, parent, popup, *args, **kwargs):
         self.popup = popup
-        self._parent = parent
-        super().__init__(parent, *args, **kwargs)
+        if parent is not None:
+            super().__init__(parent, *args, **kwargs)
+        else:
+            super().__init__(*args, **kwargs)
         # Mark the Dialog for deletion once it is closed
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        # Context menu
-        action = QtGui.QAction("Pin this Popup to the Puzzle", self)
-        action.setCheckable(True)
-        action.setChecked(modal)
-        self.addAction(action)
-        action.toggled.connect(self._handle_modal)
-        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
-        self._handle_modal(modal)
-
-    def _handle_modal(self, modal):
-        if modal:
-            self.setParent(self._parent)
-            self.setWindowFlags(
-                self.windowFlags()
-                & ~QtCore.Qt.WindowType.WindowMinimizeButtonHint
-                & ~QtCore.Qt.WindowType.WindowMaximizeButtonHint
-            )
-            self.show()
-            self.raise_()
-            self.activateWindow()
-        else:
-            self.setParent(None)
-            self.setWindowFlags(
-                self.windowFlags()
-                | QtCore.Qt.WindowType.WindowMinimizeButtonHint
-                | QtCore.Qt.WindowType.WindowMaximizeButtonHint
-            )
-            self.show()
 
     def closeEvent(self, event):
         self.popup.handle_close()
