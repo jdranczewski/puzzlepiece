@@ -93,3 +93,27 @@ You can also control-click on the buttons in the GUI (or press control+enter) to
 in a thread, though do that at your own risk - if you press get twice for example during a camera
 exposure, the manufacturer's API may get confused. This is best used for independent things - say
 you want to keep the camera running while you set the position of a moving stage.
+
+I want to do <X> to the param input
++++++++++++++++++++++++++++++++++++
+You may want to change something about the way a param's input behaves, for example add more decimal
+places to a :class:`~puzzlepiece.param.ParamFloat`, or add some options to a
+:class:`~puzzlepiece.param.ParamDropdown`.
+
+I don't implement all of these options, because it would quickly become a bit unwieldy to support
+every use case, and Qt already has APIs for most things like this. Every ``param`` exposes an
+``input`` attribute, which is a reference to the specific Qt Widget used for the input.
+
+For example, you may check that :class:`~puzzlepiece.param.ParamFloat` uses a ``QDoubleSpinBox``
+as its input box, either by reading the source code or inspecting ``puzzle["piece:param"].input``
+in an interactive shell. You can then go to the brilliant
+`Qt Docs <https://doc.qt.io/qt-6/qdoublespinbox.html#decimals-prop>`_
+and find out that you can use ``QDoubleSpinBox.setDecimals(int prec)`` to set the number of decimal
+places.
+
+This can then be used either within the Piece or in your app to adjust existing Pieces::
+
+  # in ``define_params``
+  self["param"].input.setDecimals(5)
+  # in your app
+  puzzle["piece:param"].input.setDecimals(5)
