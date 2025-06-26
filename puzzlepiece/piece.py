@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 from functools import wraps
 import inspect
 import math
@@ -127,7 +127,7 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
-    def open_popup(self, popup, name=None):
+    def open_popup(self, popup, name=None, modal=True):
         """
         Open a popup window for this Piece. A popup is a :class:`puzzlepiece.piece.Popup`
         object, which is like a Piece but floats in a separate window attached to the main
@@ -137,6 +137,9 @@ class Piece(QtWidgets.QGroupBox):
 
         :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
         :param name: text to show as the window title
+        :param modal: if True, the Popup will be attached to the Puzzle, always appearing with
+            it and without a taskbar entry. If False, it will be an independent window that can
+            be minimised.
         :rtype: puzzlepiece.piece.Popup
         """
         # Instantiate the popup
@@ -145,16 +148,20 @@ class Piece(QtWidgets.QGroupBox):
         popup.setStyleSheet("QGroupBox {border:0;}")
 
         # Make a dialog window for the popup to live in
-        dialog = _QDialog(self, popup)
+        dialog = _QDialog(self, popup, modal)
         layout = QtWidgets.QVBoxLayout()
         dialog.setLayout(layout)
         layout.addWidget(popup)
         dialog.setWindowTitle(name or "Popup")
 
+        if not hasattr(self, "_popups"):
+            self._popups = []
+        self._popups.append(dialog)
+
         # Display the dialog
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
+        # dialog.show()
+        # dialog.raise_()
+        # dialog.activateWindow()
         self.puzzle._close_popups.connect(dialog.accept)
 
         return popup
@@ -286,11 +293,40 @@ class _QDialog(QtWidgets.QDialog):
     with a custom function.
     """
 
-    def __init__(self, parent, popup, *args, **kwargs):
+    def __init__(self, parent, popup, modal, *args, **kwargs):
         self.popup = popup
+        self._parent = parent
         super().__init__(parent, *args, **kwargs)
         # Mark the Dialog for deletion once it is closed
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        # Context menu
+        action = QtGui.QAction("Pin this Popup to the Puzzle", self)
+        action.setCheckable(True)
+        action.setChecked(modal)
+        self.addAction(action)
+        action.toggled.connect(self._handle_modal)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        self._handle_modal(modal)
+
+    def _handle_modal(self, modal):
+        if modal:
+            self.setParent(self._parent)
+            self.setWindowFlags(
+                self.windowFlags()
+                & ~QtCore.Qt.WindowType.WindowMinimizeButtonHint
+                & ~QtCore.Qt.WindowType.WindowMaximizeButtonHint
+            )
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        else:
+            self.setParent(None)
+            self.setWindowFlags(
+                self.windowFlags()
+                | QtCore.Qt.WindowType.WindowMinimizeButtonHint
+                | QtCore.Qt.WindowType.WindowMaximizeButtonHint
+            )
+            self.show()
 
     def closeEvent(self, event):
         self.popup.handle_close()
