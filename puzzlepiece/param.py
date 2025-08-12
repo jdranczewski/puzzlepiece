@@ -333,7 +333,7 @@ class BaseParam(QtWidgets.QWidget):
 
         :meta public:
         """
-        self.input.setText(self._format.format(value))
+        self.input.setText(self._format.format(*value))
 
     def _input_get_value(self):
         """
