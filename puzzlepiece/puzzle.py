@@ -186,7 +186,8 @@ class Puzzle(QtWidgets.QWidget):
                     widget._replace_piece(name, old_piece, new_piece)
 
         self._pieces._replace_item(name, new_piece)
-        old_piece.handle_close(None)
+        if not self.debug:
+            old_piece.handle_close(None)
         # old_piece.deleteLater()
         old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         old_piece.close()
