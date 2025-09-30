@@ -811,7 +811,7 @@ class ParamDropdown(BaseParam):
     def make_child_param(self, kwargs=None):
         return super().make_child_param(
             kwargs={
-                "values": self._values,
+                "values": [self.input.itemText(i) for i in range(self.input.count())],
             }
         )
 
