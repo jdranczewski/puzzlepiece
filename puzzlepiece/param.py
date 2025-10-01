@@ -67,6 +67,7 @@ class BaseParam(QtWidgets.QWidget):
         self._visible = visible
         self._format = format
         self._piece = piece
+        self._group = None
 
         if _type is not None:
             self._type = _type
@@ -386,6 +387,8 @@ class BaseParam(QtWidgets.QWidget):
             _type=self._type,
             **kwargs,
         )
+        if self._group is not None:
+            child.set_group(self._group)
 
         if self._setter is None:
             # If no explicit setter, just set the parent param whenever the child updates
@@ -397,6 +400,17 @@ class BaseParam(QtWidgets.QWidget):
             child.setAutoFillBackground(False)
 
         return child
+
+    def set_group(self, group):
+        """
+        Make this param a part of a named group. Params that share a group name are displayed
+        together in a frame. This only has an effect when called before the Piece layout is
+        constructed, so should be called in :func:`puzzlepiece.piece.Piece.define_params`.
+
+        In most cases it's easier to use the :func:`puzzlepiece.param.group` decorator - check its
+        documentation for more details on grouping.
+        """
+        self._group = group
 
     @property
     def type(self):
@@ -1215,5 +1229,33 @@ def progress(piece, name, visible=True):
             name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
+
+    return decorator
+
+
+def group(name):
+    """
+    Decorator that makes a param a part of a named group. Params that share a group name are
+    displayed together in a frame. This only has an effect when called before the Piece layout is
+    constructed, so should be done in :func:`puzzlepiece.piece.Piece.define_params`.
+
+    This decorator should be added above the main param-defining decorator, for example (within
+    :func:`~puzzlepiece.piece.Piece.define_params`)::
+
+        @pzp.param.group("name")
+        @pzp.param.text(self, "test1", "")
+        def test1(value):
+            print(value)
+
+        # If there is no setter/getter, we can use `set_group` directly:
+        pzp.param.text(self, "test2", "")(None)
+        self["test2"].set_group("name")
+
+    See also: :func:`puzzlepiece.param.BaseParam.set_group`.
+    """
+
+    def decorator(param):
+        param.set_group(name)
+        return param
 
     return decorator

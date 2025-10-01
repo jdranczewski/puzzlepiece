@@ -100,11 +100,54 @@ class Piece(QtWidgets.QGroupBox):
         """
         layout = QtWidgets.QGridLayout()
         visible_params = [key for key in self.params if self.params[key].visible]
+        done = set()
+        # Compute how many rows the params should span
         if wrap:
             self.param_wrap = wrap
         numrows = math.ceil(len(visible_params) / self.param_wrap)
+        group_offset = 0
+        # Iterate over the params and add them to the grid
         for i, key in enumerate(visible_params):
-            layout.addWidget(self.params[key], i % numrows, i // numrows)
+            if key in done:
+                # All params in a group are added immediately when the group is
+                # first encountered, so we can skip adding them subsequently
+                group_offset -= 1
+                continue
+            if self.params[key]._group:
+                # Group found, prepare to add all its params!
+                group = self.params[key]._group
+                group_widget = QtWidgets.QGroupBox(group)
+                group_layout = QtWidgets.QGridLayout()
+                group_widget.setLayout(group_layout)
+                group_params = [
+                    key for key in visible_params if self.params[key]._group == group
+                ]
+                # Iterate on the found params and add them to the sub-grid
+                for j, key in enumerate(group_params):
+                    group_layout.addWidget(self.params[key], j, 0)
+                    done.add(key)
+                layout.addWidget(
+                    group_widget,
+                    (i + group_offset) % numrows,
+                    (i + group_offset) // numrows,
+                    len(group_params),
+                    1,
+                )
+                # Compute the offset for the main grid layout
+                # How much does this group stick out from the desired number of rows?
+                out = len(group_params) + (i + group_offset) % numrows - numrows
+                # How many rows does the group take?
+                group_offset += len(group_params) - 1
+                if out > 0:
+                    group_offset -= out
+            else:
+                # Add the param to the main grid directly if it is not in a group
+                layout.addWidget(
+                    self.params[key],
+                    (i + group_offset) % numrows,
+                    (i + group_offset) // numrows,
+                )
+                done.add(key)
         return layout
 
     def action_layout(self, wrap=None):
@@ -183,7 +226,7 @@ class Piece(QtWidgets.QGroupBox):
         # Instantiate the popup
         if isinstance(popup, type):
             popup = popup(self, self.puzzle)
-        popup.setStyleSheet("QGroupBox {border:0;}")
+        popup.setStyleSheet(".Popup {border:0;}")
 
         # Make a dialog window for the popup to live in
         dialog = _QDialog(self if modal else None, popup)
