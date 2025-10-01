@@ -15,12 +15,16 @@ class Piece(QtWidgets.QGroupBox):
     Pieces can be assembled into a :class:`~puzzlepiece.puzzle.Puzzle` using the Puzzle's
     :func:`~puzzlepiece.puzzle.Puzzle.add_piece` method.
 
+    Create custom Pieces by inheriting from this class, and overriding
+    :func:`~puzzlepiece.piece.Piece.define_params`, :func:`~puzzlepiece.piece.Piece.define_actions`,
+    and :func:`~puzzlepiece.piece.Piece.custom_layout`.
+
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
-    :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
-                              if True.
+    :param custom_horizontal: Display the custom layout to the right of the main controls.
+        (**Deprecated**, use :attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
     """
 
-    def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
+    def __init__(self, puzzle=None, custom_horizontal=None, *args, **kwargs):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
         self.puzzle = puzzle or PretendPuzzle()
@@ -44,6 +48,8 @@ class Piece(QtWidgets.QGroupBox):
         self.define_actions()
 
         if custom_horizontal:
+            self.custom_horizontal = custom_horizontal
+        if self.custom_horizontal:
             self.layout = QtWidgets.QHBoxLayout()
         else:
             self.layout = QtWidgets.QVBoxLayout()
@@ -58,36 +64,59 @@ class Piece(QtWidgets.QGroupBox):
         if custom_layout is not None:
             self.layout.addLayout(custom_layout)
 
-        if custom_layout is None or custom_horizontal:
+        if custom_layout is None or self.custom_horizontal:
             control_layout.addStretch()
 
-    def param_layout(self, wrap=1):
-        """
-        Genereates a `QGridLayout` for the params. Override to set a different wrapping.
+    custom_horizontal = False
+    """
+    You can specify a couple options when creating your Piece::
 
-        :param wrap: the number of columns the params are displayed in .
+        class MyPiece(pzp.Piece):
+            # These settings are optional
+            custom_horizontal = True # Show your custom layout to the right of the params and actions
+            param_wrap = 2 # The number of columns the params are displayed in
+            action_wrap = 3 # The number of columns the actions are displayed in
+    """
+    #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    param_wrap = 1
+    #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    action_wrap = 2
+    
+    def param_layout(self, wrap=None):
+        """
+        Genereates a `QGridLayout` for the params.
+
+        :meta private:
+        :param wrap: the number of columns the params are displayed in. (**Deprecated**,
+            use :attr:`~puzzlepiece.piece.Piece.param_wrap`).
         :rtype: QtWidgets.QGridLayout
         """
         layout = QtWidgets.QGridLayout()
         visible_params = [key for key in self.params if self.params[key].visible]
-        numrows = math.ceil(len(visible_params) / wrap)
+        if wrap:
+            self.param_wrap = wrap
+        numrows = math.ceil(len(visible_params) / self.param_wrap)
         for i, key in enumerate(visible_params):
             layout.addWidget(self.params[key], i % numrows, i // numrows)
         return layout
 
-    def action_layout(self, wrap=2):
+    def action_layout(self, wrap=None):
         """
-        Genereates a `QGridLayout` for the actions. Override to set a different wrapping.
+        Genereates a `QGridLayout` for the actions.
 
-        :param wrap: the number of columns the actions are displayed in.
+        :meta private:
+        :param wrap: the number of columns the actions are displayed in. (**Deprecated**,
+            use :attr:`~puzzlepiece.piece.Piece.action_wrap`)
         :rtype: QtWidgets.QGridLayout
         """
         layout = QtWidgets.QGridLayout()
         visible_actions = [key for key in self.actions if self.actions[key].visible]
+        if wrap:
+            self.action_wrap = wrap
         for i, key in enumerate(visible_actions):
             button = QtWidgets.QPushButton(key)
             button.clicked.connect(lambda x=False, _key=key: self.actions[_key]())
-            layout.addWidget(button, i // wrap, i % wrap)
+            layout.addWidget(button, i // self.action_wrap, i % self.action_wrap)
         return layout
 
     def custom_layout(self):
@@ -106,11 +135,13 @@ class Piece(QtWidgets.QGroupBox):
 
     def define_readouts(self):
         """
-        Mostly deprecated.
+        **Deprecated**.
 
         Override to define readouts (params with getters). This is no different that defining them in
         :func:`~puzzlepiece.piece.Piece.define_params`, but may be a convenient way to organise the
         definitions within your custom class.
+
+        :meta private:
         """
         pass
 
