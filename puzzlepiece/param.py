@@ -162,7 +162,7 @@ class BaseParam(QtWidgets.QWidget):
             # If there's no setter, we call set_value to set the value from input
             self.set_value()
 
-    def set_value(self, value=None):
+    def set_value(self, value=None, skip_setter=False, skip_getter=False):
         """
         Set the value of the param. If a setter is registered, it will be called.
 
@@ -176,6 +176,8 @@ class BaseParam(QtWidgets.QWidget):
 
         :param value: The value this param should be set to (if None, we grab the value from
           the param's input box.)
+        :param skip_setter: Skips the param's setter and sets the internal value directly.
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
         :returns: The new value of the param.
         """
         # If a value is not provided, grab one from the input
@@ -186,14 +188,14 @@ class BaseParam(QtWidgets.QWidget):
             value = self._type(value)
             self._sig_input_set_value.emit(value)
 
-        if self._setter is not None:
+        if self._setter is not None and not skip_setter:
             # Colour the background to indicate setter is running
             self._sig_setAutoFillBackground.emit(True)
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
             if new_value is None:
                 # If the setter did not return a value, see if there is a getter
-                if self._getter is not None:
+                if self._getter is not None and not skip_getter:
                     new_value = self._getter()
                 else:
                     # Otherwise the new value is just the value we're setting
@@ -233,7 +235,7 @@ class BaseParam(QtWidgets.QWidget):
         else:
             return self._value
 
-    def set_value_threaded(self, value=None):
+    def set_value_threaded(self, value=None, skip_setter=False, skip_getter=False):
         """
         Call :func:`~puzzlepiece.param.BaseParam.set_value` in a thread. While
         :func:`~puzzlepiece.param.BaseParam.set_value` itself is by default threadsafe,
@@ -242,9 +244,20 @@ class BaseParam(QtWidgets.QWidget):
 
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
+
+        :param value: The value this param should be set to (if None, we grab the value from
+          the param's input box.)
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
         """
         if self._piece.puzzle is not None:
-            self._piece.puzzle.run_worker(threads.Worker(lambda: self.set_value(value)))
+            self._piece.puzzle.run_worker(
+                threads.Worker(
+                    lambda: self.set_value(
+                        value, skip_setter=skip_setter, skip_getter=skip_getter
+                    )
+                )
+            )
         else:
             self.set_value(value)
 
@@ -367,14 +380,23 @@ class BaseParam(QtWidgets.QWidget):
 
         :param kwargs: Additional arguments to pass when creating the child.
         """
+
         # Only make an explicit setter if this param has an explicit setter.
         # The other case is handled via a Signal below, once the child
         # param is created.
-        setter = None if self._setter is None else (lambda value: self.set_value(value))
+        def set_parent(value):
+            signaller.blocking_a = True
+            signaller.blocking_b = True
+            return self.set_value(value)
 
-        # child params always have a getter, to make the direction of data flow clear.
-        def getter():
+        setter = None if self._setter is None else set_parent
+
+        def get_parent():
+            signaller.blocking_a = True
+            signaller.blocking_b = True
             return self.get_value()
+
+        getter = None if self._getter is None else get_parent
 
         kwargs = kwargs or {}
 
@@ -390,9 +412,15 @@ class BaseParam(QtWidgets.QWidget):
         if self._group is not None:
             child.set_group(self._group)
 
+        # To avoid an infinite loop of `changed` signals triggering between the
+        # parent and child, we block the execution of the slots to be temporarily
+        # one-directional after the first Signal emits.
+        signaller = _OneWaySignaller(child, self.changed, child.changed)
+        signaller.call_a.connect(lambda: child.set_value(self.value, skip_setter=True))
+
         if self._setter is None:
             # If no explicit setter, just set the parent param whenever the child updates
-            child.changed.connect(lambda: self.set_value(child.value))
+            signaller.call_b.connect(lambda: self.set_value(child.value))
         elif self._value is not None:
             # When a param is created and has an explicit setter, it will be highlighted
             # red to indicate the setter has not been called. Here we remove the highlight
@@ -447,6 +475,38 @@ class BaseParam(QtWidgets.QWidget):
             self.setFocus()
         else:
             super().keyPressEvent(event)
+
+
+class _OneWaySignaller(QtCore.QObject):
+    call_a = QtCore.Signal()
+    call_b = QtCore.Signal()
+
+    def __init__(self, parent, signal_a, signal_b):
+        super().__init__(parent)
+        self.signal_a = signal_a
+        self.signal_b = signal_b
+        self.blocking_a = False
+        self.blocking_b = False
+        self.signal_a.connect(self.received_a)
+        self.signal_b.connect(self.received_b)
+
+    def received_a(self):
+        if not self.blocking_a:
+            print("received a, firing a and blocking b")
+            self.blocking_b = True
+            self.call_a.emit()
+        else:
+            print("received a (blocked), not firing a and unblocking a")
+            self.blocking_a = False
+
+    def received_b(self):
+        if not self.blocking_b:
+            print("received b, firing b and blocking a")
+            self.blocking_a = True
+            self.call_b.emit()
+        else:
+            print("received b (blocked), not firing b and unblocking b")
+            self.blocking_b = False
 
 
 class ParamInt(BaseParam):
