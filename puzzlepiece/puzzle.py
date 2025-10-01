@@ -701,7 +701,7 @@ class PieceDict:
         return "PieceDict({})".format(", ".join(self._dict.keys()))
 
 
-class Globals:
+class Globals(QtCore.QObject):
     """
     A dictionary wrapper used for :attr:`puzzlepiece.puzzle.Puzzle.globals`. It behaves like
     a dictionary, allowing :class:`puzzlepiece.piece.Piece` objects to share device APIs
@@ -716,6 +716,7 @@ class Globals:
     def __init__(self):
         self._dict = {}
         self._counts = {}
+        super().__init__()
 
     def require(self, name):
         """
@@ -780,8 +781,14 @@ class Globals:
             raise KeyError("No global variable with id '{}'".format(key))
         return self._dict[key]
 
+    #: A Qt signal called when a Globals key is deleted. The key is passed as the argument.
+    #: You can use this when multiple Pieces share the same API instance - the other Pieces
+    #: can connect to this Signal and handle the API being deleted.
+    deleted = QtCore.Signal(object)
+
     def __delitem__(self, key):
         del self._dict[key]
+        self.deleted.emit(key)
         if key in self._counts:
             del self._counts[key]
 
