@@ -134,7 +134,9 @@ class Puzzle(QtWidgets.QWidget):
 
     # Adding elements
 
-    def add_piece(self, name, piece, row, column, rowspan=1, colspan=1):
+    def add_piece(
+        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the Puzzle.
 
@@ -144,11 +146,19 @@ class Puzzle(QtWidgets.QWidget):
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
-        :param column: Width in columns.
+        :param colspan: Width in columns.
+        :param param_defaults: An optional dictionary of default param values. These will be set
+            without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+            signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self)
+            piece = piece(self, param_defaults=param_defaults)
+        elif param_defaults:
+            # If default values for the params have been passed, but
+            # the Piece is already instantiated, we have to set
+            # these defaults separately
+            piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
         self.register_piece(name, piece)
@@ -499,7 +509,7 @@ class Folder(QtWidgets.QTabWidget):
         self.puzzle = puzzle
         self.pieces = []
 
-    def add_piece(self, name, piece):
+    def add_piece(self, name, piece, param_defaults=None):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` as a tab to this Folder, and registers it with the
         parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -507,10 +517,15 @@ class Folder(QtWidgets.QTabWidget):
         :param name: Identifying string for the Piece.
         :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
           be automatically instantiated).
+        :param param_defaults: An optional dictionary of default param values. These will be set
+          without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+          signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self.puzzle)
+            piece = piece(self.puzzle, param_defaults=param_defaults)
+        elif param_defaults:
+            piece._set_param_defaults(param_defaults)
         self.addTab(piece, name)
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)
@@ -582,7 +597,9 @@ class Grid(QtWidgets.QWidget):
         self.layout = QtWidgets.QGridLayout()
         self.setLayout(self.layout)
 
-    def add_piece(self, name, piece, row, column, rowspan=1, colspan=1):
+    def add_piece(
+        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the parent
         :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -593,11 +610,16 @@ class Grid(QtWidgets.QWidget):
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
-        :param column: Width in columns.
+        :param colspan: Width in columns.
+        :param param_defaults: An optional dictionary of default param values. These will be set
+          without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+          signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self.puzzle)
+            piece = piece(self.puzzle, param_defaults=param_defaults)
+        elif param_defaults:
+            piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
         self.puzzle.register_piece(name, piece)

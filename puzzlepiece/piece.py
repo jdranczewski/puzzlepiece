@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
+from pyqtgraph.Qt import QtWidgets, QtCore
 from functools import wraps
 import inspect
 import math
@@ -22,9 +22,14 @@ class Piece(QtWidgets.QGroupBox):
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
     :param custom_horizontal: Display the custom layout to the right of the main controls.
         (**Deprecated**, use :attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    :param param_defaults: An optional dictionary of default param values. These will be set
+        without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+        signals. See also ``param_defaults`` in :func:`puzzlepiece.puzzle.Puzzle.add_piece`,
     """
 
-    def __init__(self, puzzle=None, custom_horizontal=None, *args, **kwargs):
+    def __init__(
+        self, puzzle=None, custom_horizontal=None, param_defaults=None, *args, **kwargs
+    ):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
         self.puzzle = puzzle or PretendPuzzle()
@@ -46,6 +51,8 @@ class Piece(QtWidgets.QGroupBox):
         self.define_params()
         self.define_readouts()
         self.define_actions()
+        if param_defaults:
+            self._set_param_defaults(param_defaults)
 
         if custom_horizontal:
             self.custom_horizontal = custom_horizontal
@@ -81,7 +88,7 @@ class Piece(QtWidgets.QGroupBox):
     param_wrap = 1
     #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
     action_wrap = 2
-    
+
     def param_layout(self, wrap=None):
         """
         Genereates a `QGridLayout` for the params.
@@ -238,6 +245,14 @@ class Piece(QtWidgets.QGroupBox):
         """
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
+
+    def _set_param_defaults(self, param_defaults):
+        """
+        Set default values for the params, without emitting the changed
+        signal or calling the setters.
+        """
+        for param in param_defaults:
+            self.params[param]._input_set_value(param_defaults[param])
 
     def __getitem__(self, name):
         return self.params[name]
