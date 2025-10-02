@@ -223,6 +223,7 @@ class Puzzle(QtWidgets.QWidget):
         or :func:`puzzlepiece.puzzle.Grid.add_piece`, so this method should rarely be called manually.
         """
         self.pieces[name] = piece
+        piece._name = name
         piece.setTitle(name)
 
     # Other methods

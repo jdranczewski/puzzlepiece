@@ -362,23 +362,23 @@ class BaseParam(QtWidgets.QWidget):
 
     def make_child_param(self, kwargs=None):
         """
-        Create and return a child param. Changing the value of the child changes the value
-        of the parent, but not vice versa - each child has a getter that allows for refreshing
-        the value from the parent.
+        Create and return a child param. The child will be of the same type as the
+        parent - a checkbox, spinbox, etc.
 
-        The child will be of the same type as the parent - a checkbox, spinbox, etc.
-
+        The child param will keep in sync with the parent, and you can have multiple child params
+        active at any time.
         The parent's getter will be called when you :func:`~puzzlepiece.param.BaseParam.get_value`
         on the child. The parent's setter will be called when you
         :func:`~puzzlepiece.param.BaseParam.set_value` on a child.
 
-        You may need to override this method when creating params that have a different call
-        signature for ``__init__``. Additional arguments can then be provided with ``kwargs``.
+        You may need to override this method when creating  :class:`~puzzlepiece.param.BaseParam`
+        subclasses that have a different call signature for ``__init__``. Additional arguments
+        can then be provided with ``kwargs``.
 
         See :func:`puzzlepiece.piece.Popup.add_child_params` for a quick way of adding child
-        params to a popup.
+        params to a Popup.
 
-        :param kwargs: Additional arguments to pass when creating the child.
+        :param kwargs: Additional arguments to pass to ``__init__`` when creating the child.
         """
 
         # Only make an explicit setter if this param has an explicit setter.

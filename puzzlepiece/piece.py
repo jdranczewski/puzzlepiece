@@ -43,6 +43,7 @@ class Piece(QtWidgets.QGroupBox):
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
         self.shortcuts = {}
+        self._name = None
 
         if not self.puzzle.debug:
             self.setup()
@@ -470,6 +471,21 @@ class Popup(Piece):
         for name in param_names:
             self.params[name] = self.parent_piece.params[name].make_child_param()
 
+    def add_invisible_params(self):
+        """
+        Add all hidden params from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
+        This lets you quickly make a Settings popup that adjusts the hidden params of a Piece.
+
+        See :func:`puzzlepiece.param.BaseParam.make_child_param` for details, as well as
+        :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
+        """
+        invisible_params = [
+            key for key in self.parent_piece.params
+            if not self.parent_piece.params[key].visible
+        ]
+        for name in invisible_params:
+            self.params[name] = self.parent_piece.params[name].make_child_param()
+
     def add_child_actions(self, action_names):
         """
         Given a list of action names referring to actions of the parent :class:`~puzzlepiece.piece.Piece`,
@@ -482,6 +498,21 @@ class Popup(Piece):
         :param action_names: List of the parent_piece's action names to make children from.
         """
         for name in action_names:
+            self.actions[name] = self.parent_piece.actions[name].make_child_action()
+
+    def add_invisible_actions(self):
+        """
+        Add all hidden actions from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
+        This lets you quickly make a Settings popup that displays additional actions for a Piece.
+
+        See :func:`puzzlepiece.param.BaseParam.make_child_action` for details, as well as
+        :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
+        """
+        invisible_actions = [
+            key for key in self.parent_piece.actions
+            if not self.parent_piece.actions[key].visible
+        ]
+        for name in invisible_actions:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
     def close(self):
