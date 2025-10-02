@@ -226,7 +226,7 @@ class Piece(QtWidgets.QGroupBox):
         # Instantiate the popup
         if isinstance(popup, type):
             popup = popup(self, self.puzzle)
-        popup.setStyleSheet(".Popup {border:0;}")
+        popup.setStyleSheet("Popup {border:0;}")
 
         # Make a dialog window for the popup to live in
         dialog = _QDialog(self if modal else None, popup)

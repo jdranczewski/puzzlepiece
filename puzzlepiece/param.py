@@ -492,20 +492,16 @@ class _OneWaySignaller(QtCore.QObject):
 
     def received_a(self):
         if not self.blocking_a:
-            print("received a, firing a and blocking b")
             self.blocking_b = True
             self.call_a.emit()
         else:
-            print("received a (blocked), not firing a and unblocking a")
             self.blocking_a = False
 
     def received_b(self):
         if not self.blocking_b:
-            print("received b, firing b and blocking a")
             self.blocking_a = True
             self.call_b.emit()
         else:
-            print("received b (blocked), not firing b and unblocking b")
             self.blocking_b = False
 
 

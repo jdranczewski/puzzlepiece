@@ -153,11 +153,8 @@ class Puzzle(QtWidgets.QWidget):
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self, param_defaults=param_defaults)
-        elif param_defaults:
-            # If default values for the params have been passed, but
-            # the Piece is already instantiated, we have to set
-            # these defaults separately
+            piece = piece(self)
+        if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
@@ -523,8 +520,8 @@ class Folder(QtWidgets.QTabWidget):
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self.puzzle, param_defaults=param_defaults)
-        elif param_defaults:
+            piece = piece(self.puzzle)
+        if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.addTab(piece, name)
         self.pieces.append(piece)
@@ -533,7 +530,7 @@ class Folder(QtWidgets.QTabWidget):
 
         # No title or border displayed when Piece in Folder
         piece.setTitle(None)
-        piece.setStyleSheet("QGroupBox {border:0;}")
+        piece.setStyleSheet("Piece {border:0;}")
         # Remove most of the border if the stylesheet fails
         piece.setFlat(True)
 
@@ -571,7 +568,7 @@ class Folder(QtWidgets.QTabWidget):
             new_piece.folder = self
             # No title or border displayed when Piece in Folder
             new_piece.setTitle(None)
-            new_piece.setStyleSheet("QGroupBox {border:0;}")
+            new_piece.setStyleSheet("Piece {border:0;}")
             new_piece.setFlat(True)
 
             self.pieces.remove(old_piece)
@@ -617,8 +614,8 @@ class Grid(QtWidgets.QWidget):
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
-            piece = piece(self.puzzle, param_defaults=param_defaults)
-        elif param_defaults:
+            piece = piece(self.puzzle)
+        if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
