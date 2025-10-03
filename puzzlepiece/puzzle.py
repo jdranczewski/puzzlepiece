@@ -2,6 +2,7 @@ from . import parse
 
 from pyqtgraph.Qt import QtWidgets, QtCore
 import sys
+import traceback
 
 
 class Puzzle(QtWidgets.QWidget):
@@ -480,7 +481,14 @@ class Puzzle(QtWidgets.QWidget):
 
         if not self.debug:
             for piece_name in self.pieces:
-                self.pieces[piece_name].handle_close(event)
+                # We need to make sure we call all the handle_close methods, as
+                # well as the excepthook swap at the end, so we print the tracebacks
+                # instead of re-raising
+                try:
+                    self.pieces[piece_name].handle_close(event)
+                except Exception:
+                    print("Exception while calling handle_close:")
+                    print(traceback.format_exc())
 
         # Reinstate the original excepthook
         sys.excepthook = self._old_excepthook

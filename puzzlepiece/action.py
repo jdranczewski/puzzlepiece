@@ -126,6 +126,7 @@ def define(piece, name, shortcut=None, visible=True):
 class _Settings(piece.Popup):
     def define_params(self):
         self.add_invisible_params()
+
     def define_actions(self):
         self.add_invisible_actions()
 
@@ -148,7 +149,7 @@ def settings(piece, name="Settings", shortcut=None, visible=True):
 
             # Add a Settings button
             pzp.action.settings(self)
-    
+
     :param piece: The :class:`~puzzle.piece.Piece` this action should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_actions`
     :param name: a unique (per Piece) name for the action
@@ -156,8 +157,13 @@ def settings(piece, name="Settings", shortcut=None, visible=True):
       Example: ``QtCore.Qt.Key.Key_F1``
     :param visible: bool flag, determined if a GUI button will be shown for this param.
     """
+
     def open_settings():
-        piece.open_popup(_Settings, f"{piece._name} settings" if piece._name is not None else "Settings")
+        piece.open_popup(
+            _Settings,
+            f"{piece._name} settings" if piece._name is not None else "Settings",
+        )
+
     action_object = Action(open_settings, piece, shortcut, visible)
     piece.actions[name] = action_object
     if shortcut:

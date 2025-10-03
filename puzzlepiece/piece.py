@@ -485,7 +485,8 @@ class Popup(Piece):
         :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
         """
         invisible_params = [
-            key for key in self.parent_piece.params
+            key
+            for key in self.parent_piece.params
             if not self.parent_piece.params[key].visible
         ]
         for name in invisible_params:
@@ -514,7 +515,8 @@ class Popup(Piece):
         :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
         """
         invisible_actions = [
-            key for key in self.parent_piece.actions
+            key
+            for key in self.parent_piece.actions
             if not self.parent_piece.actions[key].visible
         ]
         for name in invisible_actions:
