@@ -8,7 +8,7 @@ from . import threads
 
 _red_bg_palette = QtGui.QPalette()
 _red_bg_palette.setColor(
-    _red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255)
+    _red_bg_palette.ColorRole.Window, QtGui.QColor(255, 130, 70, 80)
 )
 
 

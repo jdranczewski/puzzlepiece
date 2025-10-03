@@ -1,6 +1,8 @@
 from . import parse
 
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
+import ctypes
+import os
 import sys
 import traceback
 
@@ -18,10 +20,19 @@ class Puzzle(QtWidgets.QWidget):
     :type debug: bool
     :param bottom_buttons: Whether the bottom buttons of the Puzzle (Tree, Export, STOP) should be shown.
     :type bottom_buttons: bool
+    :param style: A Qt style to apply to the QApplication. puzzlepiece defaults to Fusion for cross-platform
+        consistency, and adds some tweaks to make it look better. Set to None to maintain system-specific styling.
     """
 
     def __init__(
-        self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
+        self,
+        app=None,
+        name="Puzzle",
+        debug=True,
+        bottom_buttons=True,
+        style="Fusion",
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         # Mark the Puzzle for deletion once it is closed
@@ -37,6 +48,59 @@ class Puzzle(QtWidgets.QWidget):
         # The list stores all the direct children of this QWidget
         self._toplevel = []
         self._threadpool = QtCore.QThreadPool()
+
+        # Set up styling
+        # # Set window icon
+        # On windows we have to tell the system that we are an application, otherwise the
+        # default Python icon will appear - https://stackoverflow.com/a/1552105
+        if hasattr(ctypes, "windll"):
+            myappid = "jdranczewski.github.io.puzzlepiece"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        # Make a QIcon and set it
+        dirname = os.path.dirname(__file__)
+        self.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
+        # # Set the application style, and make some tweaks to it if its the
+        # # puzzlepiece default (Fusion)
+        self._stylesheet = "Popup {border:0;}"
+        if style and style.lower() in [
+            key.lower() for key in QtWidgets.QStyleFactory.keys()
+        ]:
+            print("Style available!")
+            # Set the QApplication style if not already set.
+            # The case on Fusion/fusion is not consistent, so we lower() throughout
+            if not style.lower() == self.app.style().name().lower():
+                print(f"Setting {style=}")
+                self.app.setStyle(style)
+            # Adjustments specific to the Fusion style
+            if style.lower() == "fusion":
+                # Stylesheet to make the Piece and group titles more clear
+                self._stylesheet += """
+                    Piece {
+                        font-weight: bold;
+                    }
+                    .QGroupBox {
+                        font-weight: bold;
+                        font-style: italic;
+                    }
+                    QGroupBox::title {
+                        left: 2ex;
+                        bottom: -0.5ex;
+                    }
+                    QTabBar::tab:selected {
+                        font-weight: bold;
+                    }
+                """
+                palette = self.app.palette()
+                if palette.color(palette.ColorRole.Window).lightness() < 150:
+                    # Dark mode! Add a bit to the stylesheet to make group boxes stand out more
+                    # (Fusion doesn't make them distinct enough by default)
+                    print("Dark mode!")
+                    self._stylesheet += """
+                        Puzzle > Piece, Piece > QGroupBox, Grid > Piece {
+                            background-color: rgba(255, 255, 255, 15);
+                        }
+                    """
+        self.setStyleSheet(self._stylesheet)
 
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)

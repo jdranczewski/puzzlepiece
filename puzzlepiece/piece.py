@@ -1,7 +1,8 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 from functools import wraps
 import inspect
 import math
+import os
 
 from .puzzle import PretendPuzzle
 from . import _snippets
@@ -227,7 +228,6 @@ class Piece(QtWidgets.QGroupBox):
         # Instantiate the popup
         if isinstance(popup, type):
             popup = popup(self, self.puzzle)
-        popup.setStyleSheet("Popup {border:0;}")
 
         # Make a dialog window for the popup to live in
         dialog = _QDialog(self if modal else None, popup)
@@ -235,6 +235,8 @@ class Piece(QtWidgets.QGroupBox):
         dialog.setLayout(layout)
         layout.addWidget(popup)
         dialog.setWindowTitle(name or "Popup")
+        dirname = os.path.dirname(__file__)
+        dialog.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
 
         # Add buttons to non-modal windows
         if not modal:
@@ -243,6 +245,10 @@ class Piece(QtWidgets.QGroupBox):
                 | QtCore.Qt.WindowType.WindowMinimizeButtonHint
                 | QtCore.Qt.WindowType.WindowMaximizeButtonHint
             )
+            # Since the Puzzle is not a parent when the dialog is not modal,
+            # we have to add the puzzle's stylesheet to the dialog manually
+            if self.puzzle._stylesheet:
+                dialog.setStyleSheet(self.puzzle._stylesheet)
 
         if not hasattr(self, "_popups"):
             self._popups = []

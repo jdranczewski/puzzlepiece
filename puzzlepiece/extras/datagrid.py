@@ -1,4 +1,5 @@
-from qtpy import QtWidgets, QtCore
+from qtpy import QtWidgets, QtCore, QtGui
+import os
 
 import puzzlepiece as pzp
 
@@ -181,7 +182,6 @@ class Row:
         # Instantiate the popup
         if isinstance(popup, type):
             popup = popup(self, self.puzzle)
-        popup.setStyleSheet("QGroupBox {border:0;}")
 
         # Make a dialog window for the popup to live in
         dialog = pzp.piece._QDialog(self.parent, popup)
@@ -189,6 +189,8 @@ class Row:
         dialog.setLayout(layout)
         layout.addWidget(popup)
         dialog.setWindowTitle(name or "Popup")
+        dirname = os.path.dirname(__file__)
+        dialog.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "../icon.png")))
 
         # Display the dialog
         dialog.show()
