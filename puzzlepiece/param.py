@@ -942,6 +942,124 @@ class ParamProgress(BaseParam):
         self.set_value(1)
 
 
+class ParamConnected(BaseParam):
+    """
+    A param with for establishing a connection to hardware. See the
+    :func:`~puzzlepiece.param.connect` and :func:`~puzzlepiece.param.disconnect` decorators
+    below for how to use this in your Piece.
+
+    You can also instance this param directly, but this is needed only if multiple instances
+    are required, in which case they can't all be called "connected" (the default)::
+
+        def define_params(self):
+            self.params["another_connection"] = pzp.param.ParamConnected("another_connection", piece=self)
+            @self.params["another_connection"].set_connect
+            def connect():
+                print("Connecting...")
+    """
+    _type = bool
+
+    def __init__(self, name="connected", visible=True, *args, **kwargs):
+        super().__init__(
+            name, False, self._set_connected, None, visible, *args, **kwargs
+        )
+        self._connect = None
+        self._disconnect = None
+
+    def set_connect(self, function):
+        """
+        Sets the connecting function, can be used as a decorator.
+        See :func:`~puzzlepiece.param.connect`.
+
+        :param function: a method that will be called when the param is set to True.
+            It should take no arguments.
+        """
+        self._connect = function
+
+    def set_disconnect(self, function):
+        """
+        Sets the disconnecting function, can be used as a decorator.
+        See :func:`~puzzlepiece.param.disconnect`.
+
+        :param function: a method that will be called when the param is set to False.
+            It should take no arguments.
+        """
+        self._disconnect = function
+
+    def _set_connected(self, value):
+        # TODO: handle case where self.value is None
+        if not self.value and value and self._connect is not None:
+            return self._connect()
+        elif self.value and not value and self._disconnect is not None:
+            return self._disconnect()
+        else:
+            # Force the initial None to a False so that a value is returned rather than None
+            return bool(self.value)
+
+    def _make_input(self, value=None, connect=None):
+        """:meta private:"""
+        input = QtWidgets.QPushButton()
+        self._yes_icon = input.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
+        )
+        self._no_icon = input.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton
+        )
+        # input.setAutoFillBackground(True)
+        if value is not None:
+            self._set_colour(value, input=input)
+            input.setIcon(self._yes_icon if value else self._no_icon)
+
+        def handle_clicked():
+            if connect:
+                connect()
+            # Process events to let the background turn red as a sign of loading
+            QtWidgets.QApplication.instance().processEvents()
+            self.set_value(not self.value)
+
+        input.clicked.connect(handle_clicked)
+        return input, False
+    
+    def _set_colour(self, value, input=None):
+        input = input or self.input
+        palette = input.palette()
+        palette.setColor(
+            palette.ColorRole.Button, QtGui.QColor(50, 255, 50, 255) if value else QtGui.QColor(252, 50, 50, 255)
+        )
+        input.setPalette(palette)
+
+    def _input_set_value(self, flag):
+        """:meta private:"""
+        self._set_colour(flag)
+        self.input.setIcon(self._yes_icon if flag else self._no_icon)
+
+    def _input_get_value(self):
+        """:meta private:"""
+        return self.value
+
+    def set_value(self, value=None, skip_setter=False, skip_getter=False):
+        """:meta private:"""
+        # Make sure the displayed value is always right, even if an exception occurred
+        try:
+            return super().set_value(value, skip_setter, skip_getter)
+        except Exception as e:
+            self._input_set_value(self.value)
+            raise e
+
+
+def _wrap_generic(piece, function):
+    if function is not None:
+        if "self" in inspect.signature(function).parameters:
+
+            def wrapper():
+                return function(piece)
+        else:
+            wrapper = function
+    else:
+        wrapper = None
+    return wrapper
+
+
 def wrap_setter(piece, setter):
     """
     We wrap the setter function such that it can be called without passing
@@ -1285,6 +1403,67 @@ def progress(piece, name, visible=True):
             name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
+
+    return decorator
+
+
+def _ensure_connected_param(piece) -> ParamConnected:
+    if "connected" not in piece.params:
+        piece.params["connected"] = ParamConnected(piece=piece)
+    return piece.params["connected"]
+
+
+def connect(piece, visible=True):
+    """
+    A decorator generator that creates/updates a :class:`~puzzlepiece.param.ParamConnected` for a Piece, with
+    a given **connect** function. It should be called within :func:`~puzzlepiece.piece.Piece.define_params`.
+
+    A red/green connect button will be shown in the Piece, and the connection can be made/unmade by setting
+    the "connected" param to True/False.
+
+    Use in combination with :func:`~puzzlepiece.param.disconnect` to create the connect/disconnect flow for
+    your hardware::
+
+        def define_params(self):
+            @pzp.param.connect(self)
+            def connect():
+                if self.puzzle.debug:
+                    return True
+                print("Connecting...")
+                return True
+
+            @pzp.param.disconnect(self)
+            def disconnect():
+                if self.puzzle.debug:
+                    # Return False to acknowledge that disconnecting was successful
+                    return False
+                print("Connecting...")
+                return False
+
+    See :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
+    """
+    def decorator(function):
+        wrapper = _wrap_generic(piece, function)
+        param = _ensure_connected_param(piece)
+        param.set_connect(wrapper)
+        return param
+
+    return decorator
+
+
+def disconnect(piece, visible=True):
+    """
+    A decorator generator that creates/updates a :class:`~puzzlepiece.param.ParamConnected` for a Piece, with
+    a given **disconnect** function. It should be called within :func:`~puzzlepiece.piece.Piece.define_params`.
+
+    See :func:`~puzzlepiece.param.disconnect` for more details on establishing the connection flow, and
+    :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
+    """
+    def decorator(function):
+        wrapper = _wrap_generic(piece, function)
+        param = _ensure_connected_param(piece)
+        param.set_disconnect(wrapper)
+        return param
 
     return decorator
 

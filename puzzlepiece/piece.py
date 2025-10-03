@@ -270,8 +270,13 @@ class Piece(QtWidgets.QGroupBox):
         """
         Only called if the :class:`~puzzlepiece.puzzle.Puzzle` :attr:`~puzzlepiece.puzzle.Puzzle.debug`
         flag is False. Override to disconnect hardware etc when the main window closes.
+
+        If there is a param with the name "connected", it will be set to False in this method by
+        default (see :func:`puzzlepiece.param.connect` and :func:`puzzlepiece.param.connect` for
+        hardware connection handling).
         """
-        pass
+        if "connected" in self.params:
+            self["connected"].set_value(False)
 
     def handle_shortcut(self, event):
         """
