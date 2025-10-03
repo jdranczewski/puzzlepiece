@@ -957,6 +957,7 @@ class ParamConnected(BaseParam):
             def connect():
                 print("Connecting...")
     """
+
     _type = bool
 
     def __init__(self, name="connected", visible=True, *args, **kwargs):
@@ -1019,12 +1020,13 @@ class ParamConnected(BaseParam):
 
         input.clicked.connect(handle_clicked)
         return input, False
-    
+
     def _set_colour(self, value, input=None):
         input = input or self.input
         palette = input.palette()
         palette.setColor(
-            palette.ColorRole.Button, QtGui.QColor(50, 255, 50, 255) if value else QtGui.QColor(252, 50, 50, 255)
+            palette.ColorRole.Button,
+            QtGui.QColor(50, 255, 50, 255) if value else QtGui.QColor(252, 50, 50, 255),
         )
         input.setPalette(palette)
 
@@ -1442,6 +1444,7 @@ def connect(piece, visible=True):
 
     See :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
     """
+
     def decorator(function):
         wrapper = _wrap_generic(piece, function)
         param = _ensure_connected_param(piece)
@@ -1459,6 +1462,7 @@ def disconnect(piece, visible=True):
     See :func:`~puzzlepiece.param.disconnect` for more details on establishing the connection flow, and
     :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
     """
+
     def decorator(function):
         wrapper = _wrap_generic(piece, function)
         param = _ensure_connected_param(piece)

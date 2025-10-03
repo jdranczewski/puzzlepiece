@@ -65,11 +65,9 @@ class Puzzle(QtWidgets.QWidget):
         if style and style.lower() in [
             key.lower() for key in QtWidgets.QStyleFactory.keys()
         ]:
-            print("Style available!")
             # Set the QApplication style if not already set.
             # The case on Fusion/fusion is not consistent, so we lower() throughout
             if not style.lower() == self.app.style().name().lower():
-                print(f"Setting {style=}")
                 self.app.setStyle(style)
             # Adjustments specific to the Fusion style
             if style.lower() == "fusion":
@@ -559,11 +557,21 @@ class Puzzle(QtWidgets.QWidget):
         super().closeEvent(event)
 
 
-QApp = QtWidgets.QApplication
-"""A QApplication has to be constructed before any Qt objects
-(including the Puzzle and the Pieces), so this is a convenient shortcut to
-the QApplication class (see https://doc.qt.io/qt-6/qapplication.html).
-"""
+def QApp(args=None):
+    """A QApplication has to be constructed before any Qt objects
+    (including the Puzzle and the Pieces), so this is a convenient shortcut to
+    instance the QApplication class (see https://doc.qt.io/qt-6/qapplication.html).
+
+    Only one QApplication can exist at a time, so if there is already an instance,
+    this function returns it instead of creating a new one.
+
+    :param args: list of strings to pass as arguments when creating the QApplication
+    """
+    instance = QtWidgets.QApplication.instance()
+    if instance and args:
+        print("puzzlepiece.QApp WARNING: A QApplication already exists, ignoring provided arguments.")
+    args = args or []
+    return instance or QtWidgets.QApplication(args)
 
 
 class Folder(QtWidgets.QTabWidget):
