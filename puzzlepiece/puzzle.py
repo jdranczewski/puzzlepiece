@@ -1,4 +1,4 @@
-from . import parse
+from . import parse, threads
 
 from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 import ctypes
@@ -40,7 +40,7 @@ class Puzzle(QtWidgets.QWidget):
         # Pieces can handle the debug flag as they wish
         self._debug = debug
         self.app = app or QtWidgets.QApplication.instance()
-        self.setWindowTitle(name)
+        self.setWindowTitle(f"{name} (debug mode)" if self.debug else name)
         self._pieces = PieceDict()
         self._globals = Globals()
         # toplevel is used to send keypresses down the QWidget tree,
@@ -57,8 +57,14 @@ class Puzzle(QtWidgets.QWidget):
             myappid = "jdranczewski.github.io.puzzlepiece"
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         # Make a QIcon and set it
+        # We schedule this for when control returns to the main eventloop, otherwise
+        # Windows sometimes fails to set the icon in the taskbar
         dirname = os.path.dirname(__file__)
-        self.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
+        def set_icon():
+            self.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
+            del self._set_icon_later
+        self._set_icon_later = threads.CallLater(set_icon)
+        self._set_icon_later()
         # # Set the application style, and make some tweaks to it if its the
         # # puzzlepiece default (Fusion)
         self._stylesheet = "Popup {border:0;}"
@@ -67,7 +73,11 @@ class Puzzle(QtWidgets.QWidget):
         ]:
             # Set the QApplication style if not already set.
             # The case on Fusion/fusion is not consistent, so we lower() throughout
-            if not style.lower() == self.app.style().name().lower():
+            if (
+                (hasattr(self.app.style(), "name") and style.lower() != self.app.style().name().lower())
+                # name() was only introduced in Qt 6.1, use className in other versions
+                or (style.lower() != self.app.style().metaObject().className().lower()[1:-len("style")])
+            ):
                 self.app.setStyle(style)
             # Adjustments specific to the Fusion style
             if style.lower() == "fusion":
@@ -81,10 +91,10 @@ class Puzzle(QtWidgets.QWidget):
                         font-style: italic;
                     }
                     QGroupBox::title {
-                        left: 2ex;
+                        left: 1ex;
                         bottom: -0.5ex;
                     }
-                    QTabBar::tab:selected {
+                    Folder {
                         font-weight: bold;
                     }
                 """
