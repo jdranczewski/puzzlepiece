@@ -60,9 +60,11 @@ class Puzzle(QtWidgets.QWidget):
         # We schedule this for when control returns to the main eventloop, otherwise
         # Windows sometimes fails to set the icon in the taskbar
         dirname = os.path.dirname(__file__)
+
         def set_icon():
             self.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
             del self._set_icon_later
+
         self._set_icon_later = threads.CallLater(set_icon)
         self._set_icon_later()
         # # Set the application style, and make some tweaks to it if its the
@@ -74,9 +76,18 @@ class Puzzle(QtWidgets.QWidget):
             # Set the QApplication style if not already set.
             # The case on Fusion/fusion is not consistent, so we lower() throughout
             if (
-                (hasattr(self.app.style(), "name") and style.lower() != self.app.style().name().lower())
+                (
+                    hasattr(self.app.style(), "name")
+                    and style.lower() != self.app.style().name().lower()
+                )
                 # name() was only introduced in Qt 6.1, use className in other versions
-                or (style.lower() != self.app.style().metaObject().className().lower()[1:-len("style")])
+                or (
+                    style.lower()
+                    != self.app.style()
+                    .metaObject()
+                    .className()
+                    .lower()[1 : -len("style")]
+                )
             ):
                 self.app.setStyle(style)
             # Adjustments specific to the Fusion style
@@ -579,7 +590,9 @@ def QApp(args=None):
     """
     instance = QtWidgets.QApplication.instance()
     if instance and args:
-        print("puzzlepiece.QApp WARNING: A QApplication already exists, ignoring provided arguments.")
+        print(
+            "puzzlepiece.QApp WARNING: A QApplication already exists, ignoring provided arguments."
+        )
     args = args or []
     return instance or QtWidgets.QApplication(args)
 

@@ -87,9 +87,20 @@ def add_dll_directory(directory: str) -> None:
     os.add_dll_directory(directory)
 
 
-def load_dll(path: str) -> c.WinDLL:
-    add_dll_directory(os.path.dirname(path))
-    return c.windll.LoadLibrary(path)
+def load_dll(path: str, fallback:dict = None) -> "c.WinDLL":
+    try:
+        add_dll_directory(os.path.dirname(path))
+        return c.windll.LoadLibrary(path)
+    except Exception as e:
+        print(f"Failed to load dll ('{path}')")
+        if "message" in fallback:
+             print(fallback["message"])
+        if "url" in fallback:
+            webbrowser.open(fallback["url"])
+            print(
+                f"Installation instructions opened in default browser."
+            )
+        raise e
 
 
 def dll_methods(path: str) -> typing.List[str]:
@@ -100,7 +111,7 @@ def dll_methods(path: str) -> typing.List[str]:
     return [exp.name.decode() for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols]
 
 
-def load_dll_with_methods(path: str) -> typing.Tuple[c.WinDLL, typing.List[str]]:
+def load_dll_with_methods(path: str) -> typing.Tuple["c.WinDLL", typing.List[str]]:
     lib = load_dll(path)
     methods = dll_methods(path)
     # Iterate through the methods and get them from the library
