@@ -11,6 +11,10 @@ import typing
 
 
 # region CONFIG
+def debug_prompt():
+    check = input("Launch in debug mode? (Y/n) ")
+    return not (len(check) and check.lower()[0] == "n")
+
 def _get_caller_details(level=1):
     filename = inspect.stack()[level].filename
     return os.path.dirname(filename), os.path.basename(filename)
@@ -125,7 +129,7 @@ def load_dll_with_methods(path: str) -> typing.Tuple["c.WinDLL", typing.List[str
 
 
 # region Requirements
-def requirements(packages_spec: dict | typing.List[str]) -> None:
+def requirements(packages_spec: typing.Union[dict, typing.List[str]]) -> None:
     for package_name in packages_spec:
         if importlib.util.find_spec(package_name):
             continue

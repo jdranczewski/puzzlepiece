@@ -421,11 +421,16 @@ class BaseParam(QtWidgets.QWidget):
         if self._setter is None:
             # If no explicit setter, just set the parent param whenever the child updates
             signaller.call_b.connect(lambda: self.set_value(child.value))
-        elif self._value is not None:
-            # When a param is created and has an explicit setter, it will be highlighted
-            # red to indicate the setter has not been called. Here we remove the highlight
-            # for the child if the parent's setter has been called already.
-            child.setAutoFillBackground(False)
+        else:
+            if self._value is not None:
+                # When a param is created and has an explicit setter, it will be highlighted
+                # red to indicate the setter has not been called. Here we remove the highlight
+                # for the child if the parent's setter has been called already.
+                child.setAutoFillBackground(False)
+            else:
+                # If no value was set to this param yet, copy the default one from
+                # this param's input
+                child._input_set_value(self._input_get_value())
 
         return child
 
