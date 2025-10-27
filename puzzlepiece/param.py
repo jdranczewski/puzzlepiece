@@ -427,9 +427,10 @@ class BaseParam(QtWidgets.QWidget):
                 # red to indicate the setter has not been called. Here we remove the highlight
                 # for the child if the parent's setter has been called already.
                 child.setAutoFillBackground(False)
-            else:
+            elif self._input_get_value() is not None:
                 # If no value was set to this param yet, copy the default one from
-                # this param's input
+                # this param's input. We check whether it's None just in case,
+                # ParamArray returns None sometimes for example
                 child._input_set_value(self._input_get_value())
 
         return child

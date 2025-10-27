@@ -182,7 +182,7 @@ def requirements(packages_spec: typing.Union[dict, typing.List[str]]) -> None:
             pht.requirements({
                 "thorlabs_tsi_sdk": {
                     # This will just open installation instructions in a browser and raise ModuleNotFoundError
-                    "url": "https://pzp-hardware.readthedocs.io/en/latest/pzp_hardware.thorlabs.camera.html#installation"
+                    "url": "https://pzp-hardware.readthedocs.io/en/latest/auto/pzp_hardware.thorlabs.camera.html#installation"
                 },
                 "PIL": { # the name of the package, as in "import PIL"
                     "pip": "pillow", # the PyPI name of the package, as in "pip install pillow"
