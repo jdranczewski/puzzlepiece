@@ -272,7 +272,7 @@ class Piece(QtWidgets.QGroupBox):
         """
         self.stop = True
 
-    def handle_close(self, event):
+    def handle_close(self, event=None):
         """
         Only called if the :class:`~puzzlepiece.puzzle.Puzzle` :attr:`~puzzlepiece.puzzle.Puzzle.debug`
         flag is False. Override to disconnect hardware etc when the main window closes.

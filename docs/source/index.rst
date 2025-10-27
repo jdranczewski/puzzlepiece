@@ -28,8 +28,8 @@ you'd like in a grid layout::
    from puzzlepiece.pieces import random_number, plotter
 
    # Create a Qt app that will run our GUI, and the Puzzle - its main window
-   app = pzp.QApp([])
-   puzzle = pzp.Puzzle(app, "Basic example")
+   app = pzp.QApp()
+   puzzle = pzp.Puzzle(name="Basic example")
 
    # Add Pieces to the Puzzle
    puzzle.add_piece("random", random_number.Piece, row=0, column=0)
@@ -63,14 +63,14 @@ which will give you a unified API and GUI components automatically::
          @pzp.param.spinbox(self, "seed", 0)
          def seed(self, value):
             random.seed(value)
-         
+
          # Some params have a 'getter' function, which returns a value, like a powermeter's reading
          # In that case we make the function (which returns a value) and decorate it with
          # a readout-param-defining decorator
          @pzp.param.readout(self, "number")
          def random_number(self):
             return random.randint(0, 10)
-      
+
       def define_actions(self):
          # Sometimes an action is needed, like homing a moving stage.
          # In that case we make the function (which performs the action) and decorate it with

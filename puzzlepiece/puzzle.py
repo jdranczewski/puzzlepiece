@@ -13,6 +13,39 @@ class Puzzle(QtWidgets.QWidget):
     of an automation application. It keeps track of the :class:`~puzzlepiece.piece.Piece` objects
     it contains and lets them communicate.
 
+    A simple set up will look like this::
+
+        import puzzlepiece as pzp
+        from puzzlepiece.pieces import random_number
+
+        # Create a Qt app that will run our GUI, and the Puzzle
+        app = pzp.QApp()
+        puzzle = pzp.Puzzle(name="Basic example")
+
+        # Add Pieces to the Puzzle
+        puzzle.add_piece("random", random_number.Piece, row=0, column=0)
+
+        # Show the Puzzle window and execute the Qt application
+        puzzle.show()
+        app.exec()
+
+    The Qt app creation and call to ``exec`` can be skipped when running in IPython / Jupyter, but the
+    ``%gui qt`` magic has to be used first to enable the GUI integration.
+
+    When adding multiple :class:`~puzzlepiece.piece.Piece` s, the Puzzle can be used as a context manager,
+    ensuring that any loaded APIs will be correctly unloaded in case any of the Pieces raises an exception
+    during :func:`~puzzlepiece.piece.Piece.setup`::
+
+        with Puzzle(debug=False) as puzzle:
+            # Any exceptions raised in this setup context will cause the Puzzle to shut down
+            # gracefully, calling handle_close() on the Pieces added so far
+            puzzle.add_piece("laser", laser.Piece, row=0, column=0)
+            puzzle.add_piece("stage", stage.Piece, row=1, column=0)
+        puzzle.show()
+
+        # Note that the Puzzle object can still be used outside of the setup context
+        puzzle["laser:power].set_value(10)
+
     :param app: A QtApp created to contain this QWidget.
     :param name: A name for the window.
     :param debug: Sets the Puzzle.debug property, if True the app should launch in debug mode and Pieces
@@ -493,6 +526,14 @@ class Puzzle(QtWidgets.QWidget):
             values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
         return values
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, t, v, tb):
+        if t is not None:
+            self._handle_close()
+        return None
+
     def run(self, text):
         """
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
@@ -551,12 +592,9 @@ class Puzzle(QtWidgets.QWidget):
 
     _close_popups = QtCore.Signal()
 
-    def closeEvent(self, event):
+    def _handle_close(self, event=None):
         """
         Tell the Pieces the window is closing, so they can for example disconnect hardware.
-        Overwrites a QT method.
-
-        :meta private:
         """
         # self._shutdown_threads.emit()
         self._call_stop()
@@ -575,6 +613,14 @@ class Puzzle(QtWidgets.QWidget):
 
         # Reinstate the original excepthook
         sys.excepthook = self._old_excepthook
+
+    def closeEvent(self, event):
+        """
+        Overwrites a QT method to call ``_handle_close``.
+
+        :meta private:
+        """
+        self._handle_close(event)
         super().closeEvent(event)
 
 
