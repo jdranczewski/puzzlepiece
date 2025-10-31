@@ -18,6 +18,8 @@ You can install puzzlepiece using pip::
 
    pip install puzzlepiece
 
+Check out https://pzp-hardware.readthedocs.io for the hardware integrations already available on puzzlepiece!
+
 Example application
 ===================
 
@@ -27,8 +29,10 @@ you'd like in a grid layout::
    import puzzlepiece as pzp
    from puzzlepiece.pieces import random_number, plotter
 
-   # Create a Qt app that will run our GUI, and the Puzzle - its main window
+   # Create a Qt app, the backend that will run our GUI
    app = pzp.QApp()
+
+   # Create the Puzzle, the main window of the application
    puzzle = pzp.Puzzle(name="Basic example")
 
    # Add Pieces to the Puzzle

@@ -50,7 +50,11 @@ This is achieved through the concepts of params and actions giving you premade
 GUI components that are simple to create, and together build a universal API that
 makes talking to your setup consistent.
 
-The hardware communication is something you need to implement yourself by
+**For hardware integration Pieces, you can check out https://pzp-hardware.readthedocs.io,
+which has a growing library of ready-made integrations!**
+
+For hardware not included in ``pzp-hardware``,
+the hardware communication is something you need to implement yourself by
 creating setters and getters for the various params. For example, ThorLabs provides
 a Python API for their ThorCam cameras. You need to identify the parameters you'd
 like to expose through puzzlepiece (checkbox for connection, spinbox for integration time,
@@ -85,7 +89,7 @@ in a background thread (like get an image from a camera for a live preview), and
 threads.
 
 The :func:`puzzlepiece.param.BaseParam.get_value` and :func:`puzzlepiece.param.BaseParam.set_value`
-methods are thread-safe by default, so can be used to safely update the GUI (progress bar for 
+methods are thread-safe by default, so can be used to safely update the GUI (progress bar for
 example) from a Worker thread. Have a look at :class:`puzzlepiece.threads.Worker`
 for a more detailed discussion of this.
 

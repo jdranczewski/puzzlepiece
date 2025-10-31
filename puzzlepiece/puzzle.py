@@ -271,11 +271,11 @@ class Puzzle(QtWidgets.QWidget):
         """
         if isinstance(piece, type):
             piece = piece(self)
+        self.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
-        self.register_piece(name, piece)
 
         return piece
 
@@ -671,11 +671,11 @@ class Folder(QtWidgets.QTabWidget):
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
+        self.puzzle.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.addTab(piece, name)
         self.pieces.append(piece)
-        self.puzzle.register_piece(name, piece)
         piece.folder = self
 
         # No title or border displayed when Piece in Folder
@@ -765,11 +765,11 @@ class Grid(QtWidgets.QWidget):
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
+        self.puzzle.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
-        self.puzzle.register_piece(name, piece)
         piece.folder = self
 
         return piece
