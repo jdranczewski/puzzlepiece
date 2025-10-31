@@ -31,6 +31,7 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 autodoc_member_order = "bysource"
+autodoc_typehints = "description"
 
 # autodoc_mock_imports = ["pyqtgraph", "QtPy", "numpy"]
 

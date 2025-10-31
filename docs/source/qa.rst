@@ -50,7 +50,11 @@ This is achieved through the concepts of params and actions giving you premade
 GUI components that are simple to create, and together build a universal API that
 makes talking to your setup consistent.
 
-The hardware communication is something you need to implement yourself by
+**For hardware integration Pieces, you can check out https://pzp-hardware.readthedocs.io,
+which has a growing library of ready-made integrations!**
+
+For hardware not included in ``pzp-hardware``,
+the hardware communication is something you need to implement yourself by
 creating setters and getters for the various params. For example, ThorLabs provides
 a Python API for their ThorCam cameras. You need to identify the parameters you'd
 like to expose through puzzlepiece (checkbox for connection, spinbox for integration time,
@@ -85,7 +89,7 @@ in a background thread (like get an image from a camera for a live preview), and
 threads.
 
 The :func:`puzzlepiece.param.BaseParam.get_value` and :func:`puzzlepiece.param.BaseParam.set_value`
-methods are thread-safe by default, so can be used to safely update the GUI (progress bar for 
+methods are thread-safe by default, so can be used to safely update the GUI (progress bar for
 example) from a Worker thread. Have a look at :class:`puzzlepiece.threads.Worker`
 for a more detailed discussion of this.
 
@@ -93,3 +97,27 @@ You can also control-click on the buttons in the GUI (or press control+enter) to
 in a thread, though do that at your own risk - if you press get twice for example during a camera
 exposure, the manufacturer's API may get confused. This is best used for independent things - say
 you want to keep the camera running while you set the position of a moving stage.
+
+I want to do <X> to the param input
++++++++++++++++++++++++++++++++++++
+You may want to change something about the way a param's input behaves, for example add more decimal
+places to a :class:`~puzzlepiece.param.ParamFloat`, or add some options to a
+:class:`~puzzlepiece.param.ParamDropdown`.
+
+I don't implement all of these options, because it would quickly become a bit unwieldy to support
+every use case, and Qt already has APIs for most things like this. Every ``param`` exposes an
+``input`` attribute, which is a reference to the specific Qt Widget used for the input.
+
+For example, you may check that :class:`~puzzlepiece.param.ParamFloat` uses a ``QDoubleSpinBox``
+as its input box, either by reading the source code or inspecting ``puzzle["piece:param"].input``
+in an interactive shell. You can then go to the brilliant
+`Qt Docs <https://doc.qt.io/qt-6/qdoublespinbox.html#decimals-prop>`_
+and find out that you can use ``QDoubleSpinBox.setDecimals(int prec)`` to set the number of decimal
+places.
+
+This can then be used either within the Piece or in your app to adjust existing Pieces::
+
+  # in ``define_params``
+  self["param"].input.setDecimals(5)
+  # in your app
+  puzzle["piece:param"].input.setDecimals(5)

@@ -1,7 +1,8 @@
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 from functools import wraps
 import inspect
 import math
+import os
 
 from .puzzle import PretendPuzzle
 from . import _snippets
@@ -15,12 +16,21 @@ class Piece(QtWidgets.QGroupBox):
     Pieces can be assembled into a :class:`~puzzlepiece.puzzle.Puzzle` using the Puzzle's
     :func:`~puzzlepiece.puzzle.Puzzle.add_piece` method.
 
+    Create custom Pieces by inheriting from this class, and overriding
+    :func:`~puzzlepiece.piece.Piece.define_params`, :func:`~puzzlepiece.piece.Piece.define_actions`,
+    and :func:`~puzzlepiece.piece.Piece.custom_layout`.
+
     :param puzzle: The parent :class:`~puzzlepiece.puzzle.Puzzle`.
-    :param custom_horizontal: A bool, the custom layout is displayed to the right of the main controls
-                              if True.
+    :param custom_horizontal: Display the custom layout to the right of the main controls.
+        (**Deprecated**, use :attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    :param param_defaults: An optional dictionary of default param values. These will be set
+        without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+        signals. See also ``param_defaults`` in :func:`puzzlepiece.puzzle.Puzzle.add_piece`,
     """
 
-    def __init__(self, puzzle=None, custom_horizontal=False, *args, **kwargs):
+    def __init__(
+        self, puzzle=None, custom_horizontal=None, param_defaults=None, *args, **kwargs
+    ):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
         self.puzzle = puzzle or PretendPuzzle()
@@ -34,6 +44,7 @@ class Piece(QtWidgets.QGroupBox):
         #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         self.actions = {}
         self.shortcuts = {}
+        self._name = None
 
         if not self.puzzle.debug:
             self.setup()
@@ -42,8 +53,12 @@ class Piece(QtWidgets.QGroupBox):
         self.define_params()
         self.define_readouts()
         self.define_actions()
+        if param_defaults:
+            self._set_param_defaults(param_defaults)
 
         if custom_horizontal:
+            self.custom_horizontal = custom_horizontal
+        if self.custom_horizontal:
             self.layout = QtWidgets.QHBoxLayout()
         else:
             self.layout = QtWidgets.QVBoxLayout()
@@ -58,36 +73,102 @@ class Piece(QtWidgets.QGroupBox):
         if custom_layout is not None:
             self.layout.addLayout(custom_layout)
 
-        if custom_layout is None or custom_horizontal:
+        if custom_layout is None or self.custom_horizontal:
             control_layout.addStretch()
 
-    def param_layout(self, wrap=1):
-        """
-        Genereates a `QGridLayout` for the params. Override to set a different wrapping.
+    custom_horizontal = False
+    """
+    You can specify a couple options when creating your Piece::
 
-        :param wrap: the number of columns the params are displayed in .
+        class MyPiece(pzp.Piece):
+            # These settings are optional
+            custom_horizontal = True # Show your custom layout to the right of the params and actions
+            param_wrap = 2 # The number of columns the params are displayed in
+            action_wrap = 3 # The number of columns the actions are displayed in
+    """
+    #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    param_wrap = 1
+    #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
+    action_wrap = 2
+
+    def param_layout(self, wrap=None):
+        """
+        Genereates a `QGridLayout` for the params.
+
+        :meta private:
+        :param wrap: the number of columns the params are displayed in. (**Deprecated**,
+            use :attr:`~puzzlepiece.piece.Piece.param_wrap`).
         :rtype: QtWidgets.QGridLayout
         """
         layout = QtWidgets.QGridLayout()
         visible_params = [key for key in self.params if self.params[key].visible]
-        numrows = math.ceil(len(visible_params) / wrap)
+        done = set()
+        # Compute how many rows the params should span
+        if wrap:
+            self.param_wrap = wrap
+        numrows = math.ceil(len(visible_params) / self.param_wrap)
+        group_offset = 0
+        # Iterate over the params and add them to the grid
         for i, key in enumerate(visible_params):
-            layout.addWidget(self.params[key], i % numrows, i // numrows)
+            if key in done:
+                # All params in a group are added immediately when the group is
+                # first encountered, so we can skip adding them subsequently
+                group_offset -= 1
+                continue
+            if self.params[key]._group:
+                # Group found, prepare to add all its params!
+                group = self.params[key]._group
+                group_widget = QtWidgets.QGroupBox(group)
+                group_layout = QtWidgets.QGridLayout()
+                group_widget.setLayout(group_layout)
+                group_params = [
+                    key for key in visible_params if self.params[key]._group == group
+                ]
+                # Iterate on the found params and add them to the sub-grid
+                for j, key in enumerate(group_params):
+                    group_layout.addWidget(self.params[key], j, 0)
+                    done.add(key)
+                layout.addWidget(
+                    group_widget,
+                    (i + group_offset) % numrows,
+                    (i + group_offset) // numrows,
+                    len(group_params),
+                    1,
+                )
+                # Compute the offset for the main grid layout
+                # How much does this group stick out from the desired number of rows?
+                out = len(group_params) + (i + group_offset) % numrows - numrows
+                # How many rows does the group take?
+                group_offset += len(group_params) - 1
+                if out > 0:
+                    group_offset -= out
+            else:
+                # Add the param to the main grid directly if it is not in a group
+                layout.addWidget(
+                    self.params[key],
+                    (i + group_offset) % numrows,
+                    (i + group_offset) // numrows,
+                )
+                done.add(key)
         return layout
 
-    def action_layout(self, wrap=2):
+    def action_layout(self, wrap=None):
         """
-        Genereates a `QGridLayout` for the actions. Override to set a different wrapping.
+        Genereates a `QGridLayout` for the actions.
 
-        :param wrap: the number of columns the actions are displayed in.
+        :meta private:
+        :param wrap: the number of columns the actions are displayed in. (**Deprecated**,
+            use :attr:`~puzzlepiece.piece.Piece.action_wrap`)
         :rtype: QtWidgets.QGridLayout
         """
         layout = QtWidgets.QGridLayout()
         visible_actions = [key for key in self.actions if self.actions[key].visible]
+        if wrap:
+            self.action_wrap = wrap
         for i, key in enumerate(visible_actions):
             button = QtWidgets.QPushButton(key)
             button.clicked.connect(lambda x=False, _key=key: self.actions[_key]())
-            layout.addWidget(button, i // wrap, i % wrap)
+            layout.addWidget(button, i // self.action_wrap, i % self.action_wrap)
         return layout
 
     def custom_layout(self):
@@ -106,11 +187,13 @@ class Piece(QtWidgets.QGroupBox):
 
     def define_readouts(self):
         """
-        Mostly deprecated.
+        **Deprecated**.
 
         Override to define readouts (params with getters). This is no different that defining them in
         :func:`~puzzlepiece.piece.Piece.define_params`, but may be a convenient way to organise the
         definitions within your custom class.
+
+        :meta private:
         """
         pass
 
@@ -127,7 +210,7 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
-    def open_popup(self, popup, name=None):
+    def open_popup(self, popup, name=None, modal=True):
         """
         Open a popup window for this Piece. A popup is a :class:`puzzlepiece.piece.Popup`
         object, which is like a Piece but floats in a separate window attached to the main
@@ -137,19 +220,39 @@ class Piece(QtWidgets.QGroupBox):
 
         :param popup: a :class:`puzzlepiece.piece.Popup` _class_ to instantiate
         :param name: text to show as the window title
+        :param modal: if True, the Popup will be attached to the Puzzle, always appearing with
+            it and without a taskbar entry. If False, it will be an independent window that can
+            be minimised.
         :rtype: puzzlepiece.piece.Popup
         """
         # Instantiate the popup
         if isinstance(popup, type):
             popup = popup(self, self.puzzle)
-        popup.setStyleSheet("QGroupBox {border:0;}")
 
         # Make a dialog window for the popup to live in
-        dialog = _QDialog(self, popup)
+        dialog = _QDialog(self if modal else None, popup)
         layout = QtWidgets.QVBoxLayout()
         dialog.setLayout(layout)
         layout.addWidget(popup)
         dialog.setWindowTitle(name or "Popup")
+        dirname = os.path.dirname(__file__)
+        dialog.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
+
+        # Add buttons to non-modal windows
+        if not modal:
+            dialog.setWindowFlags(
+                dialog.windowFlags()
+                | QtCore.Qt.WindowType.WindowMinimizeButtonHint
+                | QtCore.Qt.WindowType.WindowMaximizeButtonHint
+            )
+            # Since the Puzzle is not a parent when the dialog is not modal,
+            # we have to add the puzzle's stylesheet to the dialog manually
+            if self.puzzle._stylesheet:
+                dialog.setStyleSheet(self.puzzle._stylesheet)
+
+        if not hasattr(self, "_popups"):
+            self._popups = []
+        self._popups.append(dialog)
 
         # Display the dialog
         dialog.show()
@@ -169,12 +272,17 @@ class Piece(QtWidgets.QGroupBox):
         """
         self.stop = True
 
-    def handle_close(self, event):
+    def handle_close(self, event=None):
         """
         Only called if the :class:`~puzzlepiece.puzzle.Puzzle` :attr:`~puzzlepiece.puzzle.Puzzle.debug`
         flag is False. Override to disconnect hardware etc when the main window closes.
+
+        If there is a param with the name "connected", it will be set to False in this method by
+        default (see :func:`puzzlepiece.param.connect` and :func:`puzzlepiece.param.connect` for
+        hardware connection handling).
         """
-        pass
+        if "connected" in self.params:
+            self["connected"].set_value(False)
 
     def handle_shortcut(self, event):
         """
@@ -192,6 +300,14 @@ class Piece(QtWidgets.QGroupBox):
         """
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
+
+    def _set_param_defaults(self, param_defaults):
+        """
+        Set default values for the params, without emitting the changed
+        signal or calling the setters.
+        """
+        for param in param_defaults:
+            self.params[param]._input_set_value(param_defaults[param])
 
     def __getitem__(self, name):
         return self.params[name]
@@ -288,7 +404,10 @@ class _QDialog(QtWidgets.QDialog):
 
     def __init__(self, parent, popup, *args, **kwargs):
         self.popup = popup
-        super().__init__(parent, *args, **kwargs)
+        if parent is not None:
+            super().__init__(parent, *args, **kwargs)
+        else:
+            super().__init__(*args, **kwargs)
         # Mark the Dialog for deletion once it is closed
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
 
@@ -363,6 +482,22 @@ class Popup(Piece):
         for name in param_names:
             self.params[name] = self.parent_piece.params[name].make_child_param()
 
+    def add_invisible_params(self):
+        """
+        Add all hidden params from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
+        This lets you quickly make a Settings popup that adjusts the hidden params of a Piece.
+
+        See :func:`puzzlepiece.param.BaseParam.make_child_param` for details, as well as
+        :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
+        """
+        invisible_params = [
+            key
+            for key in self.parent_piece.params
+            if not self.parent_piece.params[key].visible
+        ]
+        for name in invisible_params:
+            self.params[name] = self.parent_piece.params[name].make_child_param()
+
     def add_child_actions(self, action_names):
         """
         Given a list of action names referring to actions of the parent :class:`~puzzlepiece.piece.Piece`,
@@ -375,6 +510,22 @@ class Popup(Piece):
         :param action_names: List of the parent_piece's action names to make children from.
         """
         for name in action_names:
+            self.actions[name] = self.parent_piece.actions[name].make_child_action()
+
+    def add_invisible_actions(self):
+        """
+        Add all hidden actions from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
+        This lets you quickly make a Settings popup that displays additional actions for a Piece.
+
+        See :func:`puzzlepiece.param.BaseParam.make_child_action` for details, as well as
+        :func:`puzzlepiece.action.settings` for a quick way to define a Settings Popup.
+        """
+        invisible_actions = [
+            key
+            for key in self.parent_piece.actions
+            if not self.parent_piece.actions[key].visible
+        ]
+        for name in invisible_actions:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
     def close(self):

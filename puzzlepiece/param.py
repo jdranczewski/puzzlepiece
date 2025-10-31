@@ -8,7 +8,7 @@ from . import threads
 
 _red_bg_palette = QtGui.QPalette()
 _red_bg_palette.setColor(
-    _red_bg_palette.ColorRole.Window, QtGui.QColor(252, 217, 202, 255)
+    _red_bg_palette.ColorRole.Window, QtGui.QColor(255, 130, 70, 80)
 )
 
 
@@ -67,6 +67,7 @@ class BaseParam(QtWidgets.QWidget):
         self._visible = visible
         self._format = format
         self._piece = piece
+        self._group = None
 
         if _type is not None:
             self._type = _type
@@ -161,7 +162,7 @@ class BaseParam(QtWidgets.QWidget):
             # If there's no setter, we call set_value to set the value from input
             self.set_value()
 
-    def set_value(self, value=None):
+    def set_value(self, value=None, skip_setter=False, skip_getter=False):
         """
         Set the value of the param. If a setter is registered, it will be called.
 
@@ -175,6 +176,8 @@ class BaseParam(QtWidgets.QWidget):
 
         :param value: The value this param should be set to (if None, we grab the value from
           the param's input box.)
+        :param skip_setter: Skips the param's setter and sets the internal value directly.
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
         :returns: The new value of the param.
         """
         # If a value is not provided, grab one from the input
@@ -185,14 +188,14 @@ class BaseParam(QtWidgets.QWidget):
             value = self._type(value)
             self._sig_input_set_value.emit(value)
 
-        if self._setter is not None:
+        if self._setter is not None and not skip_setter:
             # Colour the background to indicate setter is running
             self._sig_setAutoFillBackground.emit(True)
             # Call setter if it exists. It may return a new value.
             new_value = self._setter(value)
             if new_value is None:
                 # If the setter did not return a value, see if there is a getter
-                if self._getter is not None:
+                if self._getter is not None and not skip_getter:
                     new_value = self._getter()
                 else:
                     # Otherwise the new value is just the value we're setting
@@ -232,7 +235,7 @@ class BaseParam(QtWidgets.QWidget):
         else:
             return self._value
 
-    def set_value_threaded(self, value=None):
+    def set_value_threaded(self, value=None, skip_setter=False, skip_getter=False):
         """
         Call :func:`~puzzlepiece.param.BaseParam.set_value` in a thread. While
         :func:`~puzzlepiece.param.BaseParam.set_value` itself is by default threadsafe,
@@ -241,9 +244,20 @@ class BaseParam(QtWidgets.QWidget):
 
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
+
+        :param value: The value this param should be set to (if None, we grab the value from
+          the param's input box.)
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
+        :param skip_getter: Skips the param's getter and sets the internal value directly.
         """
         if self._piece.puzzle is not None:
-            self._piece.puzzle.run_worker(threads.Worker(lambda: self.set_value(value)))
+            self._piece.puzzle.run_worker(
+                threads.Worker(
+                    lambda: self.set_value(
+                        value, skip_setter=skip_setter, skip_getter=skip_getter
+                    )
+                )
+            )
         else:
             self.set_value(value)
 
@@ -348,32 +362,41 @@ class BaseParam(QtWidgets.QWidget):
 
     def make_child_param(self, kwargs=None):
         """
-        Create and return a child param. Changing the value of the child changes the value
-        of the parent, but not vice versa - each child has a getter that allows for refreshing
-        the value from the parent.
+        Create and return a child param. The child will be of the same type as the
+        parent - a checkbox, spinbox, etc.
 
-        The child will be of the same type as the parent - a checkbox, spinbox, etc.
-
+        The child param will keep in sync with the parent, and you can have multiple child params
+        active at any time.
         The parent's getter will be called when you :func:`~puzzlepiece.param.BaseParam.get_value`
         on the child. The parent's setter will be called when you
         :func:`~puzzlepiece.param.BaseParam.set_value` on a child.
 
-        You may need to override this method when creating params that have a different call
-        signature for ``__init__``. Additional arguments can then be provided with ``kwargs``.
+        You may need to override this method when creating  :class:`~puzzlepiece.param.BaseParam`
+        subclasses that have a different call signature for ``__init__``. Additional arguments
+        can then be provided with ``kwargs``.
 
         See :func:`puzzlepiece.piece.Popup.add_child_params` for a quick way of adding child
-        params to a popup.
+        params to a Popup.
 
-        :param kwargs: Additional arguments to pass when creating the child.
+        :param kwargs: Additional arguments to pass to ``__init__`` when creating the child.
         """
+
         # Only make an explicit setter if this param has an explicit setter.
         # The other case is handled via a Signal below, once the child
         # param is created.
-        setter = None if self._setter is None else (lambda value: self.set_value(value))
+        def set_parent(value):
+            signaller.blocking_a = True
+            signaller.blocking_b = True
+            return self.set_value(value)
 
-        # child params always have a getter, to make the direction of data flow clear.
-        def getter():
+        setter = None if self._setter is None else set_parent
+
+        def get_parent():
+            signaller.blocking_a = True
+            signaller.blocking_b = True
             return self.get_value()
+
+        getter = None if self._getter is None else get_parent
 
         kwargs = kwargs or {}
 
@@ -386,17 +409,42 @@ class BaseParam(QtWidgets.QWidget):
             _type=self._type,
             **kwargs,
         )
+        if self._group is not None:
+            child.set_group(self._group)
+
+        # To avoid an infinite loop of `changed` signals triggering between the
+        # parent and child, we block the execution of the slots to be temporarily
+        # one-directional after the first Signal emits.
+        signaller = _OneWaySignaller(child, self.changed, child.changed)
+        signaller.call_a.connect(lambda: child.set_value(self.value, skip_setter=True))
 
         if self._setter is None:
             # If no explicit setter, just set the parent param whenever the child updates
-            child.changed.connect(lambda: self.set_value(child.value))
-        elif self._value is not None:
-            # When a param is created and has an explicit setter, it will be highlighted
-            # red to indicate the setter has not been called. Here we remove the highlight
-            # for the child if the parent's setter has been called already.
-            child.setAutoFillBackground(False)
+            signaller.call_b.connect(lambda: self.set_value(child.value))
+        else:
+            if self._value is not None:
+                # When a param is created and has an explicit setter, it will be highlighted
+                # red to indicate the setter has not been called. Here we remove the highlight
+                # for the child if the parent's setter has been called already.
+                child.setAutoFillBackground(False)
+            elif self._input_get_value() is not None:
+                # If no value was set to this param yet, copy the default one from
+                # this param's input. We check whether it's None just in case,
+                # ParamArray returns None sometimes for example
+                child._input_set_value(self._input_get_value())
 
         return child
+
+    def set_group(self, group):
+        """
+        Make this param a part of a named group. Params that share a group name are displayed
+        together in a frame. This only has an effect when called before the Piece layout is
+        constructed, so should be called in :func:`puzzlepiece.piece.Piece.define_params`.
+
+        In most cases it's easier to use the :func:`puzzlepiece.param.group` decorator - check its
+        documentation for more details on grouping.
+        """
+        self._group = group
 
     @property
     def type(self):
@@ -433,6 +481,34 @@ class BaseParam(QtWidgets.QWidget):
             self.setFocus()
         else:
             super().keyPressEvent(event)
+
+
+class _OneWaySignaller(QtCore.QObject):
+    call_a = QtCore.Signal()
+    call_b = QtCore.Signal()
+
+    def __init__(self, parent, signal_a, signal_b):
+        super().__init__(parent)
+        self.signal_a = signal_a
+        self.signal_b = signal_b
+        self.blocking_a = False
+        self.blocking_b = False
+        self.signal_a.connect(self.received_a)
+        self.signal_b.connect(self.received_b)
+
+    def received_a(self):
+        if not self.blocking_a:
+            self.blocking_b = True
+            self.call_a.emit()
+        else:
+            self.blocking_a = False
+
+    def received_b(self):
+        if not self.blocking_b:
+            self.blocking_a = True
+            self.call_b.emit()
+        else:
+            self.blocking_b = False
 
 
 class ParamInt(BaseParam):
@@ -811,7 +887,7 @@ class ParamDropdown(BaseParam):
     def make_child_param(self, kwargs=None):
         return super().make_child_param(
             kwargs={
-                "values": self._values,
+                "values": [self.input.itemText(i) for i in range(self.input.count())],
             }
         )
 
@@ -870,6 +946,126 @@ class ParamProgress(BaseParam):
             self.set_value(i / length)
             yield value
         self.set_value(1)
+
+
+class ParamConnected(BaseParam):
+    """
+    A param with for establishing a connection to hardware. See the
+    :func:`~puzzlepiece.param.connect` and :func:`~puzzlepiece.param.disconnect` decorators
+    below for how to use this in your Piece.
+
+    You can also instance this param directly, but this is needed only if multiple instances
+    are required, in which case they can't all be called "connected" (the default)::
+
+        def define_params(self):
+            self.params["another_connection"] = pzp.param.ParamConnected("another_connection", piece=self)
+            @self.params["another_connection"].set_connect
+            def connect():
+                print("Connecting...")
+    """
+
+    _type = bool
+
+    def __init__(self, name="connected", visible=True, *args, **kwargs):
+        super().__init__(
+            name, False, self._set_connected, None, visible, *args, **kwargs
+        )
+        self._connect = None
+        self._disconnect = None
+
+    def set_connect(self, function):
+        """
+        Sets the connecting function, can be used as a decorator.
+        See :func:`~puzzlepiece.param.connect`.
+
+        :param function: a method that will be called when the param is set to True.
+            It should take no arguments.
+        """
+        self._connect = function
+
+    def set_disconnect(self, function):
+        """
+        Sets the disconnecting function, can be used as a decorator.
+        See :func:`~puzzlepiece.param.disconnect`.
+
+        :param function: a method that will be called when the param is set to False.
+            It should take no arguments.
+        """
+        self._disconnect = function
+
+    def _set_connected(self, value):
+        # TODO: handle case where self.value is None
+        if not self.value and value and self._connect is not None:
+            return self._connect()
+        elif self.value and not value and self._disconnect is not None:
+            return self._disconnect()
+        else:
+            # Force the initial None to a False so that a value is returned rather than None
+            return bool(self.value)
+
+    def _make_input(self, value=None, connect=None):
+        """:meta private:"""
+        input = QtWidgets.QPushButton()
+        self._yes_icon = input.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
+        )
+        self._no_icon = input.style().standardIcon(
+            QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton
+        )
+        # input.setAutoFillBackground(True)
+        if value is not None:
+            self._set_colour(value, input=input)
+            input.setIcon(self._yes_icon if value else self._no_icon)
+
+        def handle_clicked():
+            if connect:
+                connect()
+            # Process events to let the background turn red as a sign of loading
+            QtWidgets.QApplication.instance().processEvents()
+            self.set_value(not self.value)
+
+        input.clicked.connect(handle_clicked)
+        return input, False
+
+    def _set_colour(self, value, input=None):
+        input = input or self.input
+        palette = input.palette()
+        palette.setColor(
+            palette.ColorRole.Button,
+            QtGui.QColor(50, 255, 50, 255) if value else QtGui.QColor(252, 50, 50, 255),
+        )
+        input.setPalette(palette)
+
+    def _input_set_value(self, flag):
+        """:meta private:"""
+        self._set_colour(flag)
+        self.input.setIcon(self._yes_icon if flag else self._no_icon)
+
+    def _input_get_value(self):
+        """:meta private:"""
+        return self.value
+
+    def set_value(self, value=None, skip_setter=False, skip_getter=False):
+        """:meta private:"""
+        # Make sure the displayed value is always right, even if an exception occurred
+        try:
+            return super().set_value(value, skip_setter, skip_getter)
+        except Exception as e:
+            self._input_set_value(self.value)
+            raise e
+
+
+def _wrap_generic(piece, function):
+    if function is not None:
+        if "self" in inspect.signature(function).parameters:
+
+            def wrapper():
+                return function(piece)
+        else:
+            wrapper = function
+    else:
+        wrapper = None
+    return wrapper
 
 
 def wrap_setter(piece, setter):
@@ -1154,7 +1350,7 @@ def dropdown(piece, name, value, visible=True):
     for example::
 
         @puzzlepiece.param.dropdown(self, 'param_name', '')
-        def param_values(self, value):
+        def param_values():
             return self.sdk.discover_devices()
 
     It can also be used with a set list of defaults, or with no defaults at all::
@@ -1166,15 +1362,15 @@ def dropdown(piece, name, value, visible=True):
     and :func:`puzzlepiece.param.BaseParam.set_setter` decorators::
 
         @puzzlepiece.param.dropdown(self, 'serial_number', '')
-        def serial_number(self, value):
+        def serial_number():
             return self.sdk.discover_devices()
 
         @serial_number.set_getter(self)
-        def serial_number(self):
+        def serial_number():
             return self.sdk.get_serial()
 
         @serial_number.set_setter(self)
-        def serial_number(self, value):
+        def serial_number(value):
             return self.sdk.set_serial(value)
 
     The returned param displays a dropdown and stores a string. The user can edit the dropdown's
@@ -1187,7 +1383,10 @@ def dropdown(piece, name, value, visible=True):
     def decorator(values):
         if callable(values):
             # `values` can be a function that returns a list of values
-            values = values(piece)
+            if "self" in inspect.signature(values).parameters:
+                values = values(piece)
+            else:
+                values = values()
         piece.params[name] = ParamDropdown(
             name, value, values, None, None, visible, piece=piece
         )
@@ -1212,5 +1411,96 @@ def progress(piece, name, visible=True):
             name, None, setter=None, getter=wrapper, visible=visible, piece=piece
         )
         return piece.params[name]
+
+    return decorator
+
+
+def _ensure_connected_param(piece) -> ParamConnected:
+    if "connected" not in piece.params:
+        piece.params["connected"] = ParamConnected(piece=piece)
+    return piece.params["connected"]
+
+
+def connect(piece, visible=True):
+    """
+    A decorator generator that creates/updates a :class:`~puzzlepiece.param.ParamConnected` for a Piece, with
+    a given **connect** function. It should be called within :func:`~puzzlepiece.piece.Piece.define_params`.
+
+    A red/green connect button will be shown in the Piece, and the connection can be made/unmade by setting
+    the "connected" param to True/False.
+
+    Use in combination with :func:`~puzzlepiece.param.disconnect` to create the connect/disconnect flow for
+    your hardware::
+
+        def define_params(self):
+            @pzp.param.connect(self)
+            def connect():
+                if self.puzzle.debug:
+                    return True
+                print("Connecting...")
+                return True
+
+            @pzp.param.disconnect(self)
+            def disconnect():
+                if self.puzzle.debug:
+                    # Return False to acknowledge that disconnecting was successful
+                    return False
+                print("Connecting...")
+                return False
+
+    See :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
+    """
+
+    def decorator(function):
+        wrapper = _wrap_generic(piece, function)
+        param = _ensure_connected_param(piece)
+        param.set_connect(wrapper)
+        return param
+
+    return decorator
+
+
+def disconnect(piece, visible=True):
+    """
+    A decorator generator that creates/updates a :class:`~puzzlepiece.param.ParamConnected` for a Piece, with
+    a given **disconnect** function. It should be called within :func:`~puzzlepiece.piece.Piece.define_params`.
+
+    See :func:`~puzzlepiece.param.disconnect` for more details on establishing the connection flow, and
+    :func:`~puzzlepiece.param.base_param` for more details on using decorators to register params.
+    """
+
+    def decorator(function):
+        wrapper = _wrap_generic(piece, function)
+        param = _ensure_connected_param(piece)
+        param.set_disconnect(wrapper)
+        return param
+
+    return decorator
+
+
+def group(name):
+    """
+    Decorator that makes a param a part of a named group. Params that share a group name are
+    displayed together in a frame. This only has an effect when called before the Piece layout is
+    constructed, so should be done in :func:`puzzlepiece.piece.Piece.define_params`.
+
+    This decorator should be added above the main param-defining decorator, for example (within
+    :func:`~puzzlepiece.piece.Piece.define_params`)::
+
+        @pzp.param.group("name")
+        @pzp.param.text(self, "test1", "")
+        def test1(value):
+            print(value)
+
+        # If there is no setter/getter, we can use `set_group` directly:
+        pzp.param.text(self, "test2", "")(None)
+        self["test2"].set_group("name")
+
+    See also: :func:`puzzlepiece.param.BaseParam.set_group`.
+    """
+
+    def decorator(param):
+        param.set_group(name)
+        return param
 
     return decorator

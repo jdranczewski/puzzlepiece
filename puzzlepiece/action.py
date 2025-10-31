@@ -2,6 +2,7 @@ from qtpy import QtCore
 import inspect
 
 from . import _snippets
+from . import piece
 
 
 class Action(QtCore.QObject):
@@ -81,11 +82,11 @@ def define(piece, name, shortcut=None, visible=True):
             print(f"Hello world from {self}!")
 
     The method you're decorating can take arguments, but all should in general be optional, as invoking
-    the actio with a GUI button will not provide arguments to it::
+    the action with a GUI button will not provide arguments to it::
 
         @puzzlepiece.action.define(self, 'Say Hello')
         def say_hello(name="test user"):
-            print(f"Hello {name}}!")
+            print(f"Hello {name}!")
 
     This can be invoked as::
 
@@ -93,7 +94,7 @@ def define(piece, name, shortcut=None, visible=True):
         puzzle["piece_name"].actions["Say Hello"]("another user")
         puzzle["piece_name"].actions["Say Hello"](name="another user")
 
-    :param piece: The :class:`~puzzle.piece.Piece` this param should be registered with. Usually `self`, as this method should
+    :param piece: The :class:`~puzzle.piece.Piece` this action should be registered with. Usually `self`, as this method should
       be called from within :func:`puzzlepiece.piece.Piece.define_actions`
     :param name: a unique (per Piece) name for the action
     :param shortcut: The keyboard shortcut for this action. See https://doc.qt.io/qt-6/qt.html#Key-enum for possible values.
@@ -120,3 +121,51 @@ def define(piece, name, shortcut=None, visible=True):
         return action_object
 
     return decorator
+
+
+class _Settings(piece.Popup):
+    def define_params(self):
+        self.add_invisible_params()
+
+    def define_actions(self):
+        self.add_invisible_actions()
+
+
+def settings(piece, name="Settings", shortcut=None, visible=True):
+    """
+    Define a "Settings" action in a Piece's :func:`~puzzlepiece.piece.Piece.define_actions` method.
+    This action will create a :class:`puzzlepiece.piece.Popup` that includes all of the Piece's
+    invisible params and actions. This is equivalent to using :func:`puzzlepiece.piece.Popup.add_invisible_params`
+    and :func:`puzzlepiece.piece.Popup.add_invisible_actions` in a custom Popup subclass.
+
+    This is useful when you want to display a couple of important params in the main Piece, but relegate detailed
+    settings to a sub-menu::
+
+        def define_actions(self):
+            # Add a hidden action
+            @pzp.action.define(self, "Hidden")
+            def hidden_action():
+                print("Surprise!")
+
+            # Add a Settings button
+            pzp.action.settings(self)
+
+    :param piece: The :class:`~puzzle.piece.Piece` this action should be registered with. Usually `self`, as this method should
+      be called from within :func:`puzzlepiece.piece.Piece.define_actions`
+    :param name: a unique (per Piece) name for the action
+    :param shortcut: The keyboard shortcut for this action. See https://doc.qt.io/qt-6/qt.html#Key-enum for possible values.
+      Example: ``QtCore.Qt.Key.Key_F1``
+    :param visible: bool flag, determined if a GUI button will be shown for this param.
+    """
+
+    def open_settings():
+        piece.open_popup(
+            _Settings,
+            f"{piece._name} settings" if piece._name is not None else "Settings",
+        )
+
+    action_object = Action(open_settings, piece, shortcut, visible)
+    piece.actions[name] = action_object
+    if shortcut:
+        piece.shortcuts[shortcut] = action_object
+    return action_object

@@ -18,5 +18,6 @@ The extras modules have to be imported explicitly::
 .. toctree::
    :maxdepth: 2
 
+   puzzlepiece.extras.hardware_tools
    puzzlepiece.extras.ipython_shims
    puzzlepiece.extras.datagrid

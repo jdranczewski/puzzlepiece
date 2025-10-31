@@ -1,7 +1,10 @@
-from . import parse
+from . import parse, threads
 
-from pyqtgraph.Qt import QtWidgets, QtCore
+from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
+import ctypes
+import os
 import sys
+import traceback
 
 
 class Puzzle(QtWidgets.QWidget):
@@ -10,6 +13,39 @@ class Puzzle(QtWidgets.QWidget):
     of an automation application. It keeps track of the :class:`~puzzlepiece.piece.Piece` objects
     it contains and lets them communicate.
 
+    A simple set up will look like this::
+
+        import puzzlepiece as pzp
+        from puzzlepiece.pieces import random_number
+
+        # Create a Qt app that will run our GUI, and the Puzzle
+        app = pzp.QApp()
+        puzzle = pzp.Puzzle(name="Basic example")
+
+        # Add Pieces to the Puzzle
+        puzzle.add_piece("random", random_number.Piece, row=0, column=0)
+
+        # Show the Puzzle window and execute the Qt application
+        puzzle.show()
+        app.exec()
+
+    The Qt app creation and call to ``exec`` can be skipped when running in IPython / Jupyter, but the
+    ``%gui qt`` magic has to be used first to enable the GUI integration.
+
+    When adding multiple :class:`~puzzlepiece.piece.Piece` s, the Puzzle can be used as a context manager,
+    ensuring that any loaded APIs will be correctly unloaded in case any of the Pieces raises an exception
+    during :func:`~puzzlepiece.piece.Piece.setup`::
+
+        with Puzzle(debug=False) as puzzle:
+            # Any exceptions raised in this setup context will cause the Puzzle to shut down
+            # gracefully, calling handle_close() on the Pieces added so far
+            puzzle.add_piece("laser", laser.Piece, row=0, column=0)
+            puzzle.add_piece("stage", stage.Piece, row=1, column=0)
+        puzzle.show()
+
+        # Note that the Puzzle object can still be used outside of the setup context
+        puzzle["laser:power].set_value(10)
+
     :param app: A QtApp created to contain this QWidget.
     :param name: A name for the window.
     :param debug: Sets the Puzzle.debug property, if True the app should launch in debug mode and Pieces
@@ -17,10 +53,19 @@ class Puzzle(QtWidgets.QWidget):
     :type debug: bool
     :param bottom_buttons: Whether the bottom buttons of the Puzzle (Tree, Export, STOP) should be shown.
     :type bottom_buttons: bool
+    :param style: A Qt style to apply to the QApplication. puzzlepiece defaults to Fusion for cross-platform
+        consistency, and adds some tweaks to make it look better. Set to None to maintain system-specific styling.
     """
 
     def __init__(
-        self, app=None, name="Puzzle", debug=True, bottom_buttons=True, *args, **kwargs
+        self,
+        app=None,
+        name="Puzzle",
+        debug=True,
+        bottom_buttons=True,
+        style="Fusion",
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         # Mark the Puzzle for deletion once it is closed
@@ -28,7 +73,7 @@ class Puzzle(QtWidgets.QWidget):
         # Pieces can handle the debug flag as they wish
         self._debug = debug
         self.app = app or QtWidgets.QApplication.instance()
-        self.setWindowTitle(name)
+        self.setWindowTitle(f"{name} (debug mode)" if self.debug else name)
         self._pieces = PieceDict()
         self._globals = Globals()
         # toplevel is used to send keypresses down the QWidget tree,
@@ -36,6 +81,78 @@ class Puzzle(QtWidgets.QWidget):
         # The list stores all the direct children of this QWidget
         self._toplevel = []
         self._threadpool = QtCore.QThreadPool()
+
+        # Set up styling
+        # # Set window icon
+        # On windows we have to tell the system that we are an application, otherwise the
+        # default Python icon will appear - https://stackoverflow.com/a/1552105
+        if hasattr(ctypes, "windll"):
+            myappid = "jdranczewski.github.io.puzzlepiece"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        # Make a QIcon and set it
+        # We schedule this for when control returns to the main eventloop, otherwise
+        # Windows sometimes fails to set the icon in the taskbar
+        dirname = os.path.dirname(__file__)
+
+        def set_icon():
+            self.setWindowIcon(QtGui.QIcon(os.path.join(dirname, "icon.png")))
+            del self._set_icon_later
+
+        self._set_icon_later = threads.CallLater(set_icon)
+        self._set_icon_later()
+        # # Set the application style, and make some tweaks to it if its the
+        # # puzzlepiece default (Fusion)
+        self._stylesheet = "Popup {border:0;}"
+        if style and style.lower() in [
+            key.lower() for key in QtWidgets.QStyleFactory.keys()
+        ]:
+            # Set the QApplication style if not already set.
+            # The case on Fusion/fusion is not consistent, so we lower() throughout
+            if (
+                (
+                    hasattr(self.app.style(), "name")
+                    and style.lower() != self.app.style().name().lower()
+                )
+                # name() was only introduced in Qt 6.1, use className in other versions
+                or (
+                    style.lower()
+                    != self.app.style()
+                    .metaObject()
+                    .className()
+                    .lower()[1 : -len("style")]
+                )
+            ):
+                self.app.setStyle(style)
+            # Adjustments specific to the Fusion style
+            if style.lower() == "fusion":
+                # Stylesheet to make the Piece and group titles more clear
+                self._stylesheet += """
+                    Piece {
+                        font-weight: bold;
+                    }
+                    .QGroupBox {
+                        font-weight: bold;
+                        font-style: italic;
+                    }
+                    QGroupBox::title {
+                        left: 1ex;
+                        bottom: -0.5ex;
+                    }
+                    Folder {
+                        font-weight: bold;
+                    }
+                """
+                palette = self.app.palette()
+                if palette.color(palette.ColorRole.Window).lightness() < 150:
+                    # Dark mode! Add a bit to the stylesheet to make group boxes stand out more
+                    # (Fusion doesn't make them distinct enough by default)
+                    print("Dark mode!")
+                    self._stylesheet += """
+                        Puzzle > Piece, Piece > QGroupBox, Grid > Piece {
+                            background-color: rgba(255, 255, 255, 15);
+                        }
+                    """
+        self.setStyleSheet(self._stylesheet)
 
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
@@ -134,7 +251,9 @@ class Puzzle(QtWidgets.QWidget):
 
     # Adding elements
 
-    def add_piece(self, name, piece, row, column, rowspan=1, colspan=1):
+    def add_piece(
+        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the Puzzle.
 
@@ -144,14 +263,19 @@ class Puzzle(QtWidgets.QWidget):
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
-        :param column: Width in columns.
+        :param colspan: Width in columns.
+        :param param_defaults: An optional dictionary of default param values. These will be set
+            without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+            signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self)
+        self.register_piece(name, piece)
+        if param_defaults:
+            piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
-        self.register_piece(name, piece)
 
         return piece
 
@@ -186,7 +310,8 @@ class Puzzle(QtWidgets.QWidget):
                     widget._replace_piece(name, old_piece, new_piece)
 
         self._pieces._replace_item(name, new_piece)
-        old_piece.handle_close(None)
+        if not self.debug:
+            old_piece.handle_close(None)
         # old_piece.deleteLater()
         old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         old_piece.close()
@@ -215,6 +340,7 @@ class Puzzle(QtWidgets.QWidget):
         or :func:`puzzlepiece.puzzle.Grid.add_piece`, so this method should rarely be called manually.
         """
         self.pieces[name] = piece
+        piece._name = name
         piece.setTitle(name)
 
     # Other methods
@@ -400,6 +526,14 @@ class Puzzle(QtWidgets.QWidget):
             values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
         return values
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, t, v, tb):
+        if t is not None:
+            self._handle_close()
+        return None
+
     def run(self, text):
         """
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
@@ -458,12 +592,9 @@ class Puzzle(QtWidgets.QWidget):
 
     _close_popups = QtCore.Signal()
 
-    def closeEvent(self, event):
+    def _handle_close(self, event=None):
         """
         Tell the Pieces the window is closing, so they can for example disconnect hardware.
-        Overwrites a QT method.
-
-        :meta private:
         """
         # self._shutdown_threads.emit()
         self._call_stop()
@@ -471,18 +602,45 @@ class Puzzle(QtWidgets.QWidget):
 
         if not self.debug:
             for piece_name in self.pieces:
-                self.pieces[piece_name].handle_close(event)
+                # We need to make sure we call all the handle_close methods, as
+                # well as the excepthook swap at the end, so we print the tracebacks
+                # instead of re-raising
+                try:
+                    self.pieces[piece_name].handle_close(event)
+                except Exception:
+                    print("Exception while calling handle_close:")
+                    print(traceback.format_exc())
 
         # Reinstate the original excepthook
         sys.excepthook = self._old_excepthook
+
+    def closeEvent(self, event):
+        """
+        Overwrites a QT method to call ``_handle_close``.
+
+        :meta private:
+        """
+        self._handle_close(event)
         super().closeEvent(event)
 
 
-QApp = QtWidgets.QApplication
-"""A QApplication has to be constructed before any Qt objects
-(including the Puzzle and the Pieces), so this is a convenient shortcut to
-the QApplication class (see https://doc.qt.io/qt-6/qapplication.html).
-"""
+def QApp(args=None):
+    """A QApplication has to be constructed before any Qt objects
+    (including the Puzzle and the Pieces), so this is a convenient shortcut to
+    instance the QApplication class (see https://doc.qt.io/qt-6/qapplication.html).
+
+    Only one QApplication can exist at a time, so if there is already an instance,
+    this function returns it instead of creating a new one.
+
+    :param args: list of strings to pass as arguments when creating the QApplication
+    """
+    instance = QtWidgets.QApplication.instance()
+    if instance and args:
+        print(
+            "puzzlepiece.QApp WARNING: A QApplication already exists, ignoring provided arguments."
+        )
+    args = args or []
+    return instance or QtWidgets.QApplication(args)
 
 
 class Folder(QtWidgets.QTabWidget):
@@ -498,7 +656,7 @@ class Folder(QtWidgets.QTabWidget):
         self.puzzle = puzzle
         self.pieces = []
 
-    def add_piece(self, name, piece):
+    def add_piece(self, name, piece, param_defaults=None):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` as a tab to this Folder, and registers it with the
         parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -506,18 +664,23 @@ class Folder(QtWidgets.QTabWidget):
         :param name: Identifying string for the Piece.
         :param piece: A :class:`~puzzlepiece.piece.Piece` object or a class defining one (which will
           be automatically instantiated).
+        :param param_defaults: An optional dictionary of default param values. These will be set
+          without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+          signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
+        self.puzzle.register_piece(name, piece)
+        if param_defaults:
+            piece._set_param_defaults(param_defaults)
         self.addTab(piece, name)
         self.pieces.append(piece)
-        self.puzzle.register_piece(name, piece)
         piece.folder = self
 
         # No title or border displayed when Piece in Folder
         piece.setTitle(None)
-        piece.setStyleSheet("QGroupBox {border:0;}")
+        piece.setStyleSheet("Piece {border:0;}")
         # Remove most of the border if the stylesheet fails
         piece.setFlat(True)
 
@@ -555,7 +718,7 @@ class Folder(QtWidgets.QTabWidget):
             new_piece.folder = self
             # No title or border displayed when Piece in Folder
             new_piece.setTitle(None)
-            new_piece.setStyleSheet("QGroupBox {border:0;}")
+            new_piece.setStyleSheet("Piece {border:0;}")
             new_piece.setFlat(True)
 
             self.pieces.remove(old_piece)
@@ -581,7 +744,9 @@ class Grid(QtWidgets.QWidget):
         self.layout = QtWidgets.QGridLayout()
         self.setLayout(self.layout)
 
-    def add_piece(self, name, piece, row, column, rowspan=1, colspan=1):
+    def add_piece(
+        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the parent
         :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -592,14 +757,19 @@ class Grid(QtWidgets.QWidget):
         :param row: Row index for the grid layout.
         :param column: Column index for the grid layout.
         :param rowspan: Height in rows.
-        :param column: Width in columns.
+        :param colspan: Width in columns.
+        :param param_defaults: An optional dictionary of default param values. These will be set
+          without calling the corresponding param setters or :attr:`~puzzlepiece.param.BaseParam.changed`
+          signals.
         :rtype: puzzlepiece.piece.Piece
         """
         if isinstance(piece, type):
             piece = piece(self.puzzle)
+        self.puzzle.register_piece(name, piece)
+        if param_defaults:
+            piece._set_param_defaults(param_defaults)
         self.layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
-        self.puzzle.register_piece(name, piece)
         piece.folder = self
 
         return piece
@@ -678,7 +848,7 @@ class PieceDict:
         return "PieceDict({})".format(", ".join(self._dict.keys()))
 
 
-class Globals:
+class Globals(QtCore.QObject):
     """
     A dictionary wrapper used for :attr:`puzzlepiece.puzzle.Puzzle.globals`. It behaves like
     a dictionary, allowing :class:`puzzlepiece.piece.Piece` objects to share device APIs
@@ -693,6 +863,7 @@ class Globals:
     def __init__(self):
         self._dict = {}
         self._counts = {}
+        super().__init__()
 
     def require(self, name):
         """
@@ -757,8 +928,14 @@ class Globals:
             raise KeyError("No global variable with id '{}'".format(key))
         return self._dict[key]
 
+    #: A Qt signal called when a Globals key is deleted. The key is passed as the argument.
+    #: You can use this when multiple Pieces share the same API instance - the other Pieces
+    #: can connect to this Signal and handle the API being deleted.
+    deleted = QtCore.Signal(object)
+
     def __delitem__(self, key):
         del self._dict[key]
+        self.deleted.emit(key)
         if key in self._counts:
             del self._counts[key]
 
