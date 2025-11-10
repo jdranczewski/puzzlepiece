@@ -171,6 +171,7 @@ This documentation is meant as a good way to familiarise yourself with the libra
 
    modules
    tutorial
+   python_lab
    qa
 
 

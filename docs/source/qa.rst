@@ -50,8 +50,8 @@ This is achieved through the concepts of params and actions giving you premade
 GUI components that are simple to create, and together build a universal API that
 makes talking to your setup consistent.
 
-**For hardware integration Pieces, you can check out https://pzp-hardware.readthedocs.io,
-which has a growing library of ready-made integrations!**
+**For hardware integration Pieces, you can check out** https://pzp-hardware.readthedocs.io,
+**which has a growing library of ready-made integrations!**
 
 For hardware not included in ``pzp-hardware``,
 the hardware communication is something you need to implement yourself by

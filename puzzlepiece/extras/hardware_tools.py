@@ -14,7 +14,7 @@ import typing
 # region CONFIG
 def debug_prompt(force_terminal=False):
     """
-    Display a prompt askign the user whether to launch the Puzzle in debug mode. If a QApplication
+    Display a prompt asking the user whether to launch the Puzzle in debug mode. If a QApplication
     exists, this will be a GUI prompt, otherwise ``Launch Puzzle in debug mode? (Y/n)`` is shown
     in the terminal. Returns False if the user types anything starting with "n" (n/no/No/N etc.),
     otherwise returns True. The GUI prompt can also be cancelled, which raises an Exception
@@ -338,7 +338,7 @@ def load_dll_with_methods(path: str) -> typing.Tuple["c.WinDLL", typing.List[str
     lib = load_dll(path)
     methods = dll_methods(path)
     # Iterate through the methods and get them from the library
-    # This registers them in the libary's __dir__ for future use
+    # This registers them in the library's __dir__ for future use
     for name in methods:
         getattr(lib, name)
     return lib, methods
