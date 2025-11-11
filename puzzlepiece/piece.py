@@ -306,8 +306,12 @@ class Piece(QtWidgets.QGroupBox):
         Set default values for the params, without emitting the changed
         signal or calling the setters.
         """
-        for param in param_defaults:
-            self.params[param]._input_set_value(param_defaults[param])
+        for param_name in param_defaults:
+            param = self.params[param_name]
+            value = param._type(param_defaults[param_name])
+            param._input_set_value(value)
+            if param._setter is None:
+                param._value = value
 
     def __getitem__(self, name):
         return self.params[name]
