@@ -1,9 +1,9 @@
-![Puzzlepiece](docs/source/puzzlepiece.svg)
+![Puzzlepiece](https://raw.githubusercontent.com/jdranczewski/puzzlepiece/refs/heads/main/docs/source/puzzlepiece.svg)
 
 **Puzzlepiece is a GUI-forward Python framework for automating experimental setups.** It focuses on abstracting communication with a piece of hardware into **standard inputs, outputs, and actions**. It then automatically **generates GUI components** for them, minimising the need for boilerplate code. Puzzlepiece allows the user to bring diverse controls into a single, consolidated application, and automate their interaction or experiment using a unified API, either by making custom Pieces, or through a built-in script language,
 or with Interactive Python.
 
-See the documentation at https://puzzlepiece.readthedocs.io/ for examples of how to get started.
+See the documentation at https://puzzlepiece.readthedocs.io/ for features and examples of how to get started.
 
 You can install puzzlepiece using pip:
 ```

@@ -93,7 +93,7 @@ to find. **Create this folder now.**
     cd "C:/path/to/working/folder"
 
 * Using the Python installation path, create a virtual environment with
-  a name of your choice (I usually go for “venv”)::
+  a name of your choice (I usually go for ``venv``)::
 
     <installation path>/python.exe -m venv name_of_your_venv
 
@@ -154,7 +154,7 @@ the environment.**
 
     venv
 
-  And press enter.
+  and press enter to activate the environment.
 
 Select environment in VSCode
 ----------------------------
@@ -191,15 +191,15 @@ from VS Code or from the terminal::
   python automation.py
 
 You may want to let your users run GUIs more easily though, and a good
-way to do that is to set the environment as the default way to open
-Python files. If you would rather not apply this to *all* Python files,
-you can also make up a custom text file extension (like ``.pzp``) and
+way to do that is to **set the environment as the default way to open
+Python files.** If you would rather not apply this to *all* Python files,
+you can also make up a custom text file extension (like ``.pypzp``) and
 set the default application for that.
 
 * In Windows Explorer, select "View -> Show -> File name extensions"
   to make it clear what kind of files you're working with, and make it
   easy to change the extension to whatever you want.
-* Right-click a ``.py`` (or ``.pzp``, or any other extension you want
+* Right-click a ``.py`` (or ``.pypzp``, or any other extension you want
   to open with the virtual environment's Python) file. Select "Open
   with -> Choose another app".
 * Scroll all the way down to "Choose an app on your PC" in the dialog
@@ -268,7 +268,7 @@ files in this folder will be respected when you import the package.
 You can follow similar steps to install and edit packages from GitHub. I recommend doing this
 with `pzp-hardware <https://pzp-hardware.readthedocs.io>`__, so you can add your own hardware
 integrations in the same spot, track your changes with git , and then
-`open pull requests <https://github.com/jdranczewski/pzp-hardware/pulls>`__` to have your integration
+`open pull requests <https://github.com/jdranczewski/pzp-hardware/pulls>`__ to have your integration
 merged into the main package! The steps are similar to the above::
 
   git clone https://github.com/jdranczewski/pzp-hardware.git
@@ -378,7 +378,7 @@ Tips and tricks
   should use **access tokens** rather than log into your personal account.
 
   * To create a token go to "Settings -> Developer Settings -> Personal Access Tokens -> Fine-grained
-    tokens" on GitHub (https://github.com/settings/personal-access-tokens).Under “Repository access”
+    tokens" on GitHub (https://github.com/settings/personal-access-tokens). Under “Repository access”
     select the repositories you would like the computer to access. Under “Repository permissions” give
     read and write access to Contents.
   * Configure git on the computer to sign the commits with a name unique to it, so you can trace

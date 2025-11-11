@@ -20,11 +20,12 @@ You can install puzzlepiece using pip::
 
 Check out https://pzp-hardware.readthedocs.io for the hardware integrations already available on puzzlepiece!
 
-Example application
-===================
+Feature showcase
+================
 
-Constructing a Puzzle (the GUI window containing your automation) is very easy - you create one, and then you add all the Pieces
-you'd like in a grid layout::
+Bring Pieces together to construct modular applications
+-------------------------------------------------------
+Pieces are single GUI modules that a Puzzle is constructed out of::
 
    import puzzlepiece as pzp
    from puzzlepiece.pieces import random_number, plotter
@@ -37,67 +38,62 @@ you'd like in a grid layout::
 
    # Add Pieces to the Puzzle
    puzzle.add_piece("random", random_number.Piece, row=0, column=0)
-   puzzle.add_piece("plotter", plotter.Piece, 0, 1)
+   puzzle.add_piece("plotter", plotter.Piece, 0, 1, param_defaults={
+      "param": "random:number" # specify a default value for a param
+   })
 
    # Show the Puzzle window and execute the Qt application
    puzzle.show()
    app.exec()
 
-This will give you a GUI window you can interact with directly:
-
 .. image:: basic_puzzle.png
 
-Creating Pieces
-===============
+Create your own Pieces
+----------------------
 
-Pieces are single GUI modules that a Puzzle is constructed out of. It's very easy to make a Piece, you just
-need to think about the methods you want to use to set/get its parameters and perform actions.
-
-Once these methods are defined, you can use puzzlepiece decorators to register them with the Piece,
-which will give you a unified API and GUI components automatically::
+Use decorators on methods that
+set/get parameters and perform actions to rapidly get a standardised UI and API for your automation
+or task::
 
    import puzzlepiece as pzp
    import random
 
    class RandomNumber(pzp.Piece):
       def define_params(self):
-         # Some params have a 'setter' function, which sets a value, like a laser's power.
-         # In that case we make the function (which takes a value) and decorate it with
-         # a param-defining decorator
+         # A 'setter' function sets a value, like a laser's power.
+         # We define it here and give it a param-defining decorator:
          @pzp.param.spinbox(self, "seed", 0)
          def seed(self, value):
             random.seed(value)
 
-         # Some params have a 'getter' function, which returns a value, like a powermeter's reading
-         # In that case we make the function (which returns a value) and decorate it with
-         # a readout-param-defining decorator
+         # A 'getter' function returns a value, like a powermeter's reading
+         # We define it here and give it a param-defining decorator:
          @pzp.param.readout(self, "number")
          def random_number(self):
             return random.randint(0, 10)
 
       def define_actions(self):
          # Sometimes an action is needed, like homing a moving stage.
-         # In that case we make the function (which performs the action) and decorate it with
-         # an action-defining decorator - this gives it a button in the GUI
-         @pzp.action.define(self, "Dialog")
+         # Here we make a function and decorate it with an action-defining decorator
+         @pzp.action.define(self, "Welcome!")
          def print_something(self):
             print("Hello world!")
 
-You can then add this Piece to any Puzzle and display it easily::
+You can then add this Piece to any Puzzle and display it::
 
-   app = pzp.QApp([])
-   puzzle = pzp.Puzzle(app, "Basic example")
+   app = pzp.QApp()
+   puzzle = pzp.Puzzle(name="Number generator")
    puzzle.add_piece("random_number", RandomNumber, 0, 0)
    puzzle.show()
    app.exec()
 
 .. image:: basic_piece.png
 
-Interactions between Pieces
-===========================
+Pieces can interact through the Puzzle
+--------------------------------------
 
-One Puzzle can contain multiple Pieces, and they can interact with each other through the Puzzle.
-For example we can create a Piece that accesses the RandomNumber generator created above::
+One Puzzle can contain multiple Pieces, enabling them to interact with each other.
+For example, we can create a Piece that accesses the RandomNumber generator created above::
 
    class ManyNumbers(pzp.Piece):
       def define_params(self):
@@ -110,18 +106,21 @@ For example we can create a Piece that accesses the RandomNumber generator creat
          def numbers(self):
             values = []
             # Check this Piece's own param to see how many numbers the user wants
-            N = self.params["N"].get_value()
+            N = self["N"].get_value()
+            # Set the seed on the other Piece
+            # by accessing "piece_name:param_name" on self.puzzle
+            self.puzzle["random_number:seed"].set_value(0)
             for i in range(N):
-               # Get param value from the other Piece
-               values.append(puzzle["random_number"].params["number"].get_value())
+               # Get param values from the other Piece
+               values.append(self.puzzle["random_number:number"].get_value())
             return values
 
 Once we add both Pieces to a Puzzle they can interact with each other::
 
-   app = pzp.QApp([])
-   puzzle = pzp.Puzzle(app, "Basic example")
+   app = pzp.QApp()
+   puzzle = pzp.Puzzle(name="Interactions")
    puzzle.add_piece("random_number", RandomNumber, 0, 0)
-   puzzle.add_piece("many_numbers", ManyNumbers, 1, 0)
+   puzzle.add_piece("many_numbers", ManyNumbers, 0, 1)
    puzzle.show()
    app.exec()
 
@@ -131,16 +130,15 @@ Running in Jupyter Lab/Notebook
 ===============================
 
 Running puzzlepiece in an IPython environment gives you the powerful ability to interact with your automation
-application both through the GUI and through code.
-
-Two steps are necessary to enable this. First, the Qt integration has to be enabled by running this magic in any cell::
+application **both through the GUI and through code.** Two steps are necessary to enable this.
+First, the Qt integration has to be enabled by running this magic in any cell::
 
    %gui qt
 
-Second, the Qt app is constructed for you by the IPython kernel, so you don't have to make it or run it yourself. Instead say::
+Second, the Qt application is constructed for you by the IPython kernel, so you don't have to make it or
+execute it yourself. Instead simply say::
 
-   shell = get_ipython()
-   puzzle = pzp.Puzzle(shell.kernel.app, "Basic example")
+   puzzle = pzp.Puzzle(name="Basic example")
    puzzle.add_piece("random_number", RandomNumber, 0, 0)
    puzzle.show()
 
@@ -150,20 +148,25 @@ Now you can interact with the GUI directly, or by running Python code in other c
    for i in range(10):
       values.append(puzzle["random_number"].params["number"].get_value())
 
+**You can use this to create interactive Notebooks for your lab sessions,** where the GUI is used for
+alignment and inspection, and the Notebook records your notes and the measurement code!
+
+.. image:: jupyter.png
+
 Note that there is a fix in ``ipykernel`` 6.29.3 to how exceptions are handled when ``%gui qt`` is turned on,
 you may want to update ``ipykernel`` if your cells are not running after an exception is raised.
 
 Next steps
 ==========
 
-The :ref:`Tutorial` is a great place to start - have a look or run it yourself to learn interactively!
+The :ref:`Tutorial` is a great place to start - have a look or **run it yourself to learn interactively!**
 
-Some more detailed examples are located on GitHub: `how to construct an app <https://github.com/jdranczewski/puzzlepiece/tree/main/examples>`_
-or `how to code a Piece <https://github.com/jdranczewski/puzzlepiece/blob/main/puzzlepiece/pieces/random_number.py>`_. Examples of more complex
-Pieces `are also available <https://github.com/jdranczewski/puzzlepiece/tree/main/puzzlepiece/pieces>`_.
-The full source code is available at https://github.com/jdranczewski/puzzlepiece.
+Some example Pieces are `available on GitHub <https://github.com/jdranczewski/puzzlepiece/tree/main/puzzlepiece/pieces>`_,
+and you can have a look at https://github.com/jdranczewski/pzp-hardware/ to see how to develop hardware
+integrations. The full source code of this library is available at https://github.com/jdranczewski/puzzlepiece.
 
-This documentation is meant as a good way to familiarise yourself with the library too - have a look at the table of contents below.
+This documentation is reasonably extensive, and meant as a good way to familiarise yourself with puzzlepiece
+too - have a look at the API section of the table of contents below.
 
 .. toctree::
    :maxdepth: 2
