@@ -22,6 +22,8 @@ class Piece(pzp.Piece):
         pzp.param.spinbox(self, "finish", 0.0)(None)
         pzp.param.text(self, "filename", "")(None)
 
+        pzp.param.progress(self, "progress")(None)
+
     def param_layout(self, wrap=1):
         return super().param_layout(wrap)
 
@@ -39,18 +41,16 @@ class Piece(pzp.Piece):
             obtain = pzp.parse.parse_params(
                 self.params["obtain"].get_value(), self.puzzle
             )[0]
-            self.progress_bar.setMaximum(len(values))
 
             self.x = []
             self.y = []
             self.stop = False
-            for i, value in enumerate(values):
+            for i, value in enumerate(self["progress"].iter(values)):
                 for param in params:
                     param.set_value(value)
                 self.x.append(value)
                 time.sleep(0.05)
                 self.y.append(obtain.get_value())
-                self.progress_bar.setValue(i + 1)
                 self.plot_line.setData(self.x, self.y)
                 self.puzzle.process_events()
 
@@ -66,7 +66,7 @@ class Piece(pzp.Piece):
             filename = pzp.parse.format(filename, self.puzzle)
             np.savetxt(filename, out, delimiter=",")
 
-        @pzp.action.define(self, "Name")
+        @pzp.action.define(self, "Browse")
         def choose_file(self):
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
             self.params["filename"].set_value(fname)
@@ -74,14 +74,24 @@ class Piece(pzp.Piece):
     def custom_layout(self):
         layout = QtWidgets.QVBoxLayout()
 
-        self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setMaximum(1)
-        self.progress_bar.setValue(0)
-        layout.addWidget(self.progress_bar)
-
         self.pw = pg.PlotWidget()
         layout.addWidget(self.pw)
         self.plot = self.pw.getPlotItem()
         self.plot_line = self.plot.plot([0], [0], symbol="o", symbolSize=3)
 
         return layout
+
+
+if __name__ == "__main__":
+    # If running this file directly, make a Puzzle, add our Piece, and display it
+    app = pzp.QApp()
+    puzzle = pzp.Puzzle()
+    puzzle.add_piece(
+        "scan_value",
+        Piece,
+        0,
+        0,
+        param_defaults={"params": "scan_value:finish", "obtain": "scan_value:finish"},
+    )
+    puzzle.show()
+    app.exec()

@@ -5,6 +5,7 @@
 
 import os
 import sys
+import tomllib
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -12,9 +13,10 @@ sys.path.insert(0, os.path.abspath("../.."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "puzzlepiece"
-copyright = "2024, Jakub Dranczewski"
+copyright = "2025, Jakub Dranczewski"
 author = "Jakub Dranczewski"
-release = "0.1"
+with open("../../pyproject.toml", "rb") as f:
+    release = tomllib.load(f)["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

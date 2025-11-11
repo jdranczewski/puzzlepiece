@@ -15,7 +15,7 @@ class Piece(pzp.Piece):
 
     def define_actions(self):
         @pzp.action.define(self, "Save")
-        def save(self):
+        def save():
             fname = str(QtWidgets.QFileDialog.getSaveFileName(self, "Save file...")[0])
             with open(fname, "w") as f:
                 f.write("#pre " + self.params["pre"].get_value() + "\n")
@@ -23,7 +23,7 @@ class Piece(pzp.Piece):
                 f.write(self.text.toPlainText())
 
         @pzp.action.define(self, "Open")
-        def _open(self):
+        def _open():
             fname = str(QtWidgets.QFileDialog.getOpenFileName(self, "Open file...")[0])
             with open(fname, "r") as f:
                 text = ""
@@ -37,7 +37,7 @@ class Piece(pzp.Piece):
                 self.text.setPlainText(text)
 
         @pzp.action.define(self, "Run")
-        def run(self):
+        def run():
             self.stop = False
             iter_name = self.params["iterator"].get_value()
 
@@ -64,3 +64,12 @@ class Piece(pzp.Piece):
         layout.addWidget(self.text)
 
         return layout
+
+
+if __name__ == "__main__":
+    # If running this file directly, make a Puzzle, add our Piece, and display it
+    app = pzp.QApp()
+    puzzle = pzp.Puzzle()
+    puzzle.add_piece("script", Piece, 0, 0)
+    puzzle.show()
+    app.exec()

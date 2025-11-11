@@ -15,7 +15,10 @@ def parse_params(text, puzzle):
     args = text.split(", ")
     result = []
     for arg in args:
-        piece, name = arg.split(":")
+        try:
+            piece, name = arg.split(":")
+        except ValueError:
+            raise ValueError(f"Failed to parse '{arg}' as 'piece_name:param_name'")
         if name in puzzle.pieces[piece].params:
             result.append(puzzle.pieces[piece].params[name])
         else:
