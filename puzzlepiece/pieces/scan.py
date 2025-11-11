@@ -1,65 +1,75 @@
 import puzzlepiece as pzp
-from pyqtgraph.Qt import QtWidgets
 import numpy as np
-import time
 
 
 class Piece(pzp.Piece):
+    """
+    Scan a param value and perform an action for each (run a script for example).
+    """
+
+    param_wrap = 1
+
     def __init__(self, puzzle):
         super().__init__(puzzle)
 
     def define_params(self):
-        pzp.param.text(self, "params", "laser:power")(None)
-        pzp.param.text(self, "action", "run:lightfield:Acquire")(None)
-        pzp.param.text(self, "break", "lightfield:saturated")(None)
+        pzp.param.text(self, "params", "")(None)
+        pzp.param.text(self, "action", "")(None)
+        pzp.param.text(self, "break", "")(None)
 
-        pzp.param.spinbox(self, "start", 8)(None)
-        pzp.param.spinbox(self, "end", 60)(None)
-        pzp.param.spinbox(self, "step", 2)(None)
-        pzp.param.spinbox(self, "finish", 0)(None)
+        pzp.param.spinbox(self, "start", 0.0)(None)
+        pzp.param.spinbox(self, "end", 25.1)(None)
+        pzp.param.spinbox(self, "step", 1.0)(None)
+        pzp.param.spinbox(self, "finish", 0.0)(None)
 
-    def param_layout(self, wrap=1):
-        return super().param_layout(wrap)
+        pzp.param.progress(self, "progress")(None)
 
     def define_actions(self):
         @pzp.action.define(self, "Scan")
         def scan(self):
+            # Create the list of values to scan
             values = np.arange(
-                self.params["start"].get_value(),
-                self.params["end"].get_value(),
-                self.params["step"].get_value(),
+                self["start"].get_value(),
+                self["end"].get_value(),
+                self["step"].get_value(),
             )
-            params = pzp.parse.parse_params(
-                self.params["params"].get_value(), self.puzzle
-            )
+            # List of params to set
+            params = pzp.parse.parse_params(self["params"].get_value(), self.puzzle)
+            # A break param will stop the loop if it's True
             break_param = (
-                pzp.parse.parse_params(self.params["break"].get_value(), self.puzzle)[0]
-                if len(self.params["break"].get_value())
+                pzp.parse.parse_params(self["break"].get_value(), self.puzzle)[0]
+                if len(self["break"].get_value())
                 else None
             )
-            command = self.params["action"].get_value()
-            self.progress_bar.setMaximum(len(values))
-            self.stop = False
+            # The command to run each iteration
+            command = self["action"].get_value()
 
-            for i, value in enumerate(values):
+            self.stop = False
+            for i, value in enumerate(self["progress"].iter(values)):
                 for param in params:
                     param.set_value(value)
-                time.sleep(0.05)
                 pzp.parse.run(command, self.puzzle)
-                self.progress_bar.setValue(i + 1)
                 self.puzzle.process_events()
                 if self.stop or (break_param is not None and break_param.get_value()):
                     break
             for param in params:
-                param.set_value(self.params["finish"].get_value())
-            # Maybe plot it?
+                param.set_value(self["finish"].get_value())
 
-    def custom_layout(self):
-        layout = QtWidgets.QVBoxLayout()
 
-        self.progress_bar = QtWidgets.QProgressBar()
-        self.progress_bar.setMaximum(1)
-        self.progress_bar.setValue(0)
-        layout.addWidget(self.progress_bar)
-
-        return layout
+if __name__ == "__main__":
+    # If running this file directly, make a Puzzle, add our Piece, and display it
+    app = pzp.QApp()
+    puzzle = pzp.Puzzle()
+    puzzle.add_piece(
+        "scan",
+        Piece,
+        0,
+        0,
+        param_defaults={
+            "params": "scan:finish",
+            "end": "5.1",
+            "action": "prompt:Hello, {scan:finish}",
+        },
+    )
+    puzzle.show()
+    app.exec()

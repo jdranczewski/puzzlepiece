@@ -68,3 +68,12 @@ class Piece(pzp.Piece):
 
     def call_stop(self):
         self.timer.stop()
+
+
+if __name__ == "__main__":
+    # If running this file directly, make a Puzzle, add our Piece, and display it
+    app = pzp.QApp()
+    puzzle = pzp.Puzzle()
+    puzzle.add_piece("plotter", Piece, 0, 0)
+    puzzle.show()
+    app.exec()

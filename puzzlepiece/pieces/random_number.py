@@ -37,3 +37,12 @@ class Piece(pzp.Piece):
                 "prompt:In a range between {random:min} and {random:max}, your number is {random:number}",
                 self.puzzle,
             )
+
+
+if __name__ == "__main__":
+    # If running this file directly, make a Puzzle, add our Piece, and display it
+    app = pzp.QApp()
+    puzzle = pzp.Puzzle()
+    puzzle.add_piece("random", Piece, 0, 0)
+    puzzle.show()
+    app.exec()
