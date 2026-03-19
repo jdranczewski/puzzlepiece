@@ -45,6 +45,7 @@ class Piece(QtWidgets.QGroupBox):
         self.actions = {}
         self.shortcuts = {}
         self._name = None
+        self._popped_out = False
 
         if not self.puzzle.debug:
             self.setup()
@@ -53,6 +54,8 @@ class Piece(QtWidgets.QGroupBox):
         self.define_params()
         self.define_readouts()
         self.define_actions()
+        self._define_qt_actions()
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         if param_defaults:
             self._set_param_defaults(param_defaults)
 
@@ -300,6 +303,48 @@ class Piece(QtWidgets.QGroupBox):
         """
         if self.folder is not None:
             self.folder.setCurrentWidget(self)
+
+    def toggle_pop_out(self):
+        """
+        Pop this Piece out of the Puzzle into its own modal window.
+        """
+        if not self._popped_out:
+            self.setWindowFlags(QtCore.Qt.WindowType.Window)
+            self.setWindowTitle(self._name)
+            self.show()
+            self._popped_out = True
+        else:
+            self.setWindowFlags(QtCore.Qt.WindowType.Widget)
+            self.show()
+            self._popped_out = False
+
+    def closeEvent(self, event):
+        """
+        Overwrites a QT method to pop back in when user closes the pop out window.
+
+        :meta private:
+        """
+        if self._popped_out:
+            self.toggle_pop_out()
+            event.ignore()
+        else:
+            super().closeEvent(event)
+
+    def _define_qt_actions(self):
+        """
+        Define QActions to go in the Piece's context menu.
+        """
+        # Copy name
+        action = QtGui.QAction("Copy name", self)
+        def copy_name():
+            self.puzzle.app.clipboard().setText(self._name)
+        action.triggered.connect(copy_name)
+        self.addAction(action)
+
+        # Pop out this Piece
+        action = QtGui.QAction("Pop this Piece out/in", self)
+        action.triggered.connect(self.toggle_pop_out)
+        self.addAction(action)
 
     def _set_param_defaults(self, param_defaults):
         """
