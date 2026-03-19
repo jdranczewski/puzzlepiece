@@ -743,7 +743,12 @@ class _PartialAccessor:
         self.param = param
 
     def __setitem__(self, key, value):
-        self.param._value.__setitem__(key, value)
+        try:
+            self.param._value.__setitem__(key, value)
+        except ValueError:
+            # the internal array is read-only, copy it
+            self.param._value = np.copy(self.param._value)
+            self.param._value.__setitem__(key, value)
         self.param.set_value()
 
 
