@@ -117,5 +117,7 @@ def format(text, puzzle):
                 result = str(param.get_value())
         elif len(elements) == 2:
             result = ("{" + elements[1] + "}").format(param.get_value())
+        else:
+            raise ValueError(f"Couldn't parse {m} correctly")
         text = text.replace(m, result)
     return text

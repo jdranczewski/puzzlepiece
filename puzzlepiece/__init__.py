@@ -10,4 +10,4 @@ Piece = piece.Piece
 Puzzle = puzzle.Puzzle
 QApp = puzzle.QApp
 
-__all__ = [piece, puzzle, param, readout, action, parse, threads, Piece, Puzzle, QApp]
+__all__ = ["piece", "puzzle", "param", "readout", "action", "parse", "threads", "Piece", "Puzzle", "QApp"]

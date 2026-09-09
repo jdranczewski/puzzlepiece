@@ -1,10 +1,12 @@
-from . import parse, threads
-
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 import ctypes
 import os
 import sys
 import traceback
+import typing
+
+from qtpy import QtWidgets, QtCore, QtGui
+
+from . import parse, threads, piece
 
 
 class Puzzle(QtWidgets.QWidget):
@@ -59,11 +61,11 @@ class Puzzle(QtWidgets.QWidget):
 
     def __init__(
         self,
-        app=None,
-        name="Puzzle",
-        debug=True,
-        bottom_buttons=True,
-        style="Fusion",
+        app: None | QtWidgets.QApplication = None,
+        name: str = "Puzzle",
+        debug: bool = True,
+        bottom_buttons: bool = True,
+        style: str = "Fusion",
         *args,
         **kwargs,
     ):
@@ -72,7 +74,13 @@ class Puzzle(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
-        self.app = app or QtWidgets.QApplication.instance()
+        if app is None:
+            app_instance = QtWidgets.QApplication.instance()
+            if isinstance(app_instance, QtWidgets.QApplication):
+                app = app_instance
+            else:
+                raise TypeError(f"QApplication({app_instance}) is either not running or not supported")
+        self.app = app
         self.setWindowTitle(f"{name} (debug mode)" if self.debug else name)
         self._pieces = PieceDict()
         self._globals = Globals()
@@ -157,8 +165,8 @@ class Puzzle(QtWidgets.QWidget):
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
 
-        self.layout = QtWidgets.QGridLayout()
-        self.wrapper_layout.addLayout(self.layout, 0, 0)
+        self.inner_layout = QtWidgets.QGridLayout()
+        self.wrapper_layout.addLayout(self.inner_layout, 0, 0)
 
         if bottom_buttons:
             self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
@@ -274,7 +282,7 @@ class Puzzle(QtWidgets.QWidget):
         self.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
-        self.layout.addWidget(piece, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
 
         return piece
@@ -296,7 +304,7 @@ class Puzzle(QtWidgets.QWidget):
             new_piece = new_piece(self)
 
         if old_piece in self._toplevel:
-            self.layout.replaceWidget(
+            self.inner_layout.replaceWidget(
                 old_piece,
                 new_piece,
                 options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly,
@@ -328,7 +336,7 @@ class Puzzle(QtWidgets.QWidget):
         :rtype: puzzlepiece.puzzle.Folder
         """
         folder = Folder(self)
-        self.layout.addWidget(folder, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(folder, row, column, rowspan, colspan)
         self._toplevel.append(folder)
         return folder
 
@@ -353,7 +361,7 @@ class Puzzle(QtWidgets.QWidget):
         """
         self.app.processEvents()
 
-    _shutdown_threads = QtCore.Signal()
+    _shutdown_threads = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
     def run_worker(self, worker):
         """
@@ -590,7 +598,7 @@ class Puzzle(QtWidgets.QWidget):
         for widget in self._toplevel:
             widget.handle_shortcut(event)
 
-    _close_popups = QtCore.Signal()
+    _close_popups = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
     def _handle_close(self, event=None):
         """
@@ -709,7 +717,9 @@ class Folder(QtWidgets.QTabWidget):
 
         :meta private:
         """
-        self.currentWidget().handle_shortcut(event)
+        current = self.currentWidget()
+        if isinstance(current, (piece.Piece, Folder, Grid)):
+            current.handle_shortcut(event)
 
     def _replace_piece(self, name, old_piece, new_piece):
         if old_piece in self.pieces:
@@ -741,8 +751,9 @@ class Grid(QtWidgets.QWidget):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
         self.pieces = []
-        self.layout = QtWidgets.QGridLayout()
-        self.setLayout(self.layout)
+        self.folder: None | Folder = None
+        self.inner_layout = QtWidgets.QGridLayout()
+        self.setLayout(self.inner_layout)
 
     def add_piece(
         self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
@@ -768,7 +779,7 @@ class Grid(QtWidgets.QWidget):
         self.puzzle.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
-        self.layout.addWidget(piece, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
         piece.folder = self
 
@@ -776,7 +787,7 @@ class Grid(QtWidgets.QWidget):
 
     def _replace_piece(self, name, old_piece, new_piece):
         if old_piece in self.pieces:
-            self.layout.replaceWidget(old_piece, new_piece)
+            self.inner_layout.replaceWidget(old_piece, new_piece)
             new_piece.setTitle(name)
             new_piece.folder = self
             self.pieces.remove(old_piece)
@@ -931,7 +942,7 @@ class Globals(QtCore.QObject):
     #: A Qt signal called when a Globals key is deleted. The key is passed as the argument.
     #: You can use this when multiple Pieces share the same API instance - the other Pieces
     #: can connect to this Signal and handle the API being deleted.
-    deleted = QtCore.Signal(object)
+    deleted = typing.cast(QtCore.SignalInstance, QtCore.Signal(object))
 
     def __delitem__(self, key):
         del self._dict[key]
@@ -948,18 +959,3 @@ class Globals(QtCore.QObject):
     def __repr__(self):
         return "Globals({})".format(", ".join(self._dict.keys()))
 
-
-class PretendPuzzle:
-    """
-    A placeholder object used if no :class:`~puzzlepiece.puzzle.Puzzle` is provided
-    when creating a :class:`puzzlepiece.puzzle.Piece`. Its `debug` attribute is
-    always True.
-    """
-
-    debug = True
-
-    def process_events(self):
-        """
-        Like :func:`puzzlepiece.puzzle.Puzzle.process_events()`.
-        """
-        QtWidgets.QApplication.instance().processEvents()

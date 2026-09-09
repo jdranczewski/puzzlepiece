@@ -1,6 +1,7 @@
 from qtpy import QtCore, QtWidgets
 from functools import partial
 import time
+import typing
 
 
 class CallLater:
@@ -53,7 +54,7 @@ class CallLater:
 class _Emitter(QtCore.QObject):
     # The Emitter is needed as a QRunnable is not a QObject, and cannot emit it's own signals.
     # So we set up the Signal here, and let a Worker instance an Emitter for its use
-    signal = QtCore.Signal(object)
+    signal = typing.cast(QtCore.SignalInstance, QtCore.Signal(object))
 
 
 class Worker(QtCore.QRunnable):
@@ -111,7 +112,7 @@ class Worker(QtCore.QRunnable):
 
 
 class _Done_Emitter(QtCore.QObject):
-    signal = QtCore.Signal()
+    signal = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
 
 class LiveWorker(Worker):
@@ -194,7 +195,7 @@ class PuzzleTimer(QtWidgets.QWidget):
     """
 
     #: A Qt signal emitted each time the associated LiveWorker returns, passes the returned value to the connected Slot.
-    returned = QtCore.Signal(object)
+    returned = typing.cast(QtCore.SignalInstance, QtCore.Signal(object))
 
     def __init__(self, name, puzzle, function, sleep=0.1, args=None, kwargs=None):
         self.name = name

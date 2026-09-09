@@ -27,3 +27,8 @@ classifiers = [
 "Homepage" = "https://github.com/jdranczewski/puzzlepiece"
 "Documentation" = "https://puzzlepiece.readthedocs.io"
 "Bug Tracker" = "https://github.com/jdranczewski/puzzlepiece/issues"
+
+[dependency-groups]
+dev = [
+    "pyside6>=6.5.3",
+]

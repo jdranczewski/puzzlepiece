@@ -1,5 +1,6 @@
 from qtpy import QtWidgets, QtCore, QtGui
 import inspect
+import typing
 import numpy as np
 
 from . import _snippets
@@ -41,9 +42,9 @@ class BaseParam(QtWidgets.QWidget):
     """
 
     #: A Qt signal emitted when the value changes
-    changed = QtCore.Signal()
-    _sig_input_set_value = QtCore.Signal(object)
-    _sig_setAutoFillBackground = QtCore.Signal(bool)
+    changed = typing.cast(QtCore.SignalInstance, QtCore.Signal())
+    _sig_input_set_value = typing.cast(QtCore.SignalInstance, QtCore.Signal(object))
+    _sig_setAutoFillBackground = typing.cast(QtCore.SignalInstance, QtCore.Signal(bool))
     _type = None
 
     def __init__(
@@ -250,7 +251,7 @@ class BaseParam(QtWidgets.QWidget):
         :param skip_getter: Skips the param's getter and sets the internal value directly.
         :param skip_getter: Skips the param's getter and sets the internal value directly.
         """
-        if self._piece.puzzle is not None:
+        if self._piece is not None:
             self._piece.puzzle.run_worker(
                 threads.Worker(
                     lambda: self.set_value(
@@ -271,7 +272,7 @@ class BaseParam(QtWidgets.QWidget):
         Can also be called by holding control while clicking the set button or pressing
         enter in a param's input box.
         """
-        if self._piece.puzzle is not None:
+        if self._piece is not None:
             # Colour the background to indicate getter is running
             self._sig_setAutoFillBackground.emit(True)
             self._piece.puzzle.run_worker(threads.Worker(lambda: self.get_value()))
@@ -484,8 +485,8 @@ class BaseParam(QtWidgets.QWidget):
 
 
 class _OneWaySignaller(QtCore.QObject):
-    call_a = QtCore.Signal()
-    call_b = QtCore.Signal()
+    call_a = typing.cast(QtCore.SignalInstance, QtCore.Signal())
+    call_b = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
     def __init__(self, parent, signal_a, signal_b):
         super().__init__(parent)
@@ -633,7 +634,7 @@ class _Slider(QtWidgets.QWidget):
 
     def blockSignals(self, b):
         self.input.blockSignals(b)
-        super().blockSignals(b)
+        return super().blockSignals(b)
 
 
 class ParamSlider(ParamFloat):

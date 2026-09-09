@@ -1,11 +1,16 @@
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 from functools import wraps
 import inspect
 import math
 import os
+import typing
 
-from .puzzle import PretendPuzzle
+from qtpy import QtWidgets, QtCore, QtGui
+
 from . import _snippets
+
+if typing.TYPE_CHECKING:
+    from .action import Action
+    from .puzzle import Puzzle
 
 
 class Piece(QtWidgets.QGroupBox):
@@ -29,11 +34,11 @@ class Piece(QtWidgets.QGroupBox):
     """
 
     def __init__(
-        self, puzzle=None, custom_horizontal=None, param_defaults=None, *args, **kwargs
+        self, puzzle: "Puzzle", custom_horizontal: None | bool =None, param_defaults: None | dict[str, typing.Any]=None, *args, **kwargs
     ):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle or PretendPuzzle()
+        self.puzzle = puzzle
         #: Boolean flag. See :func:`~puzzlepiece.piece.Piece.call_stop`
         self.stop = False
 
@@ -41,8 +46,7 @@ class Piece(QtWidgets.QGroupBox):
         self.params = {}
         # A reference to the param dictionary for backwards-compatibility
         self.readouts = self.params
-        #: dict: A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
-        self.actions = {}
+        self._actions = {}
         self.shortcuts = {}
         self._name = None
 
@@ -59,19 +63,19 @@ class Piece(QtWidgets.QGroupBox):
         if custom_horizontal:
             self.custom_horizontal = custom_horizontal
         if self.custom_horizontal:
-            self.layout = QtWidgets.QHBoxLayout()
+            self.inner_layout = QtWidgets.QHBoxLayout()
         else:
-            self.layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.layout)
+            self.inner_layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.inner_layout)
 
         control_layout = QtWidgets.QVBoxLayout()
         control_layout.addLayout(self.param_layout())
         control_layout.addLayout(self.action_layout())
-        self.layout.addLayout(control_layout)
+        self.inner_layout.addLayout(control_layout)
 
         custom_layout = self.custom_layout()
         if custom_layout is not None:
-            self.layout.addLayout(custom_layout)
+            self.inner_layout.addLayout(custom_layout)
 
         if custom_layout is None or self.custom_horizontal:
             control_layout.addStretch()
@@ -90,6 +94,13 @@ class Piece(QtWidgets.QGroupBox):
     param_wrap = 1
     #: See above (:attr:`~puzzlepiece.piece.Piece.custom_horizontal`).
     action_wrap = 2
+
+    @property
+    def actions(self) -> dict[str, "Action"]: # type: ignore
+        """
+        A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
+        """
+        return self._actions
 
     def param_layout(self, wrap=None):
         """
@@ -462,7 +473,7 @@ class Popup(Piece):
     def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
         self._parent_piece = parent_piece
         super().__init__(puzzle, custom_horizontal, *args, **kwargs)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.inner_layout.setContentsMargins(0, 0, 0, 0)
 
     @property
     def parent_piece(self):
@@ -532,13 +543,17 @@ class Popup(Piece):
         for name in invisible_actions:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
-    def close(self):
+    def close(self) -> bool:
         """
         Close the popup.
         """
-        self.parent().accept()
+        parent = self.parent()
+        if isinstance(parent, _QDialog):
+            parent.accept()
+            return True
+        return False
 
-    def handle_close(self):
+    def handle_close(self, event=None):
         """
         Called when the Popup is closed. Override to perform actions when the user
         closes this Popup - for example delete related plot elements.

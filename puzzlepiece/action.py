@@ -1,5 +1,6 @@
 from qtpy import QtCore
 import inspect
+import typing
 
 from . import _snippets
 from . import piece
@@ -26,7 +27,7 @@ class Action(QtCore.QObject):
     """
 
     #: A Qt signal emitted when the action is executed.
-    called = QtCore.Signal()
+    called = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
     def __init__(self, function, parent, shortcut=None, visible=True):
         self.function = function
@@ -39,7 +40,8 @@ class Action(QtCore.QObject):
 
     def __call__(self, *args, **kwargs):
         # Bring the Piece into view if in a folder
-        self.parent.elevate()
+        if isinstance(self.parent, piece.Piece):
+            self.parent.elevate()
         result = self.function(*args, **kwargs)
         self.called.emit()
         return result
