@@ -6,7 +6,7 @@ import typing
 
 from qtpy import QtWidgets, QtCore, QtGui
 
-from . import _snippets
+from . import _snippets, param
 
 if typing.TYPE_CHECKING:
     from .action import Action
@@ -34,7 +34,12 @@ class Piece(QtWidgets.QGroupBox):
     """
 
     def __init__(
-        self, puzzle: "Puzzle", custom_horizontal: None | bool =None, param_defaults: None | dict[str, typing.Any]=None, *args, **kwargs
+        self,
+        puzzle: "Puzzle",
+        custom_horizontal: None | bool = None,
+        param_defaults: None | dict[str, typing.Any] = None,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -43,12 +48,12 @@ class Piece(QtWidgets.QGroupBox):
         self.stop = False
 
         #: dict: A dictionary of this Piece's params (see :class:`~puzzlepiece.param.BaseParam`). You can also directly index the Piece object with the param name.
-        self.params = {}
+        self.params: dict[str, param.BaseParam] = {}
         # A reference to the param dictionary for backwards-compatibility
         self.readouts = self.params
         self._actions = {}
         self.shortcuts = {}
-        self._name = None
+        self._name: None | str = None
 
         if not self.puzzle.debug:
             self.setup()
@@ -96,13 +101,13 @@ class Piece(QtWidgets.QGroupBox):
     action_wrap = 2
 
     @property
-    def actions(self) -> dict[str, "Action"]: # type: ignore
+    def actions(self) -> dict[str, "Action"]:  # type: ignore
         """
         A dictionary of this Piece's actions (see :class:`~puzzlepiece.action.Action`)
         """
         return self._actions
 
-    def param_layout(self, wrap=None):
+    def param_layout(self, wrap: None | int = None) -> QtWidgets.QLayout:
         """
         Genereates a `QGridLayout` for the params.
 
@@ -163,7 +168,7 @@ class Piece(QtWidgets.QGroupBox):
                 done.add(key)
         return layout
 
-    def action_layout(self, wrap=None):
+    def action_layout(self, wrap: None | int = None) -> QtWidgets.QLayout:
         """
         Genereates a `QGridLayout` for the actions.
 
@@ -182,7 +187,7 @@ class Piece(QtWidgets.QGroupBox):
             layout.addWidget(button, i // self.action_wrap, i % self.action_wrap)
         return layout
 
-    def custom_layout(self):
+    def custom_layout(self) -> None | QtWidgets.QLayout:
         """
         Override to generate a custom `QLayout` that this Piece will display.
 
@@ -190,13 +195,13 @@ class Piece(QtWidgets.QGroupBox):
         """
         return None
 
-    def define_params(self):
+    def define_params(self) -> None:
         """
         Override to define params using decorators from :mod:`puzzlepiece.param`.
         """
         pass
 
-    def define_readouts(self):
+    def define_readouts(self) -> None:
         """
         **Deprecated**.
 
@@ -208,20 +213,22 @@ class Piece(QtWidgets.QGroupBox):
         """
         pass
 
-    def define_actions(self):
+    def define_actions(self) -> None:
         """
         Override to define actions using decorators from :mod:`puzzlepiece.action`.
         """
         pass
 
-    def setup(self):
+    def setup(self) -> None:
         """
         Only called if the :class:`~puzzlepiece.puzzle.Puzzle` debug flag is False.
         Override to set up necessary hardware libraries.
         """
         pass
 
-    def open_popup(self, popup, name=None, modal=True):
+    def open_popup(
+        self, popup: "Popup | type[Popup]", name: None | str = None, modal: bool = True
+    ) -> "Popup":
         """
         Open a popup window for this Piece. A popup is a :class:`puzzlepiece.piece.Popup`
         object, which is like a Piece but floats in a separate window attached to the main
@@ -273,7 +280,7 @@ class Piece(QtWidgets.QGroupBox):
 
         return popup
 
-    def call_stop(self):
+    def call_stop(self) -> None:
         """
         This method is called by the parent Puzzle when a global stop is called.
 
@@ -304,7 +311,7 @@ class Piece(QtWidgets.QGroupBox):
         if event.key() in self.shortcuts:
             self.shortcuts[event.key()]()
 
-    def elevate(self):
+    def elevate(self) -> None:
         """
         If this Piece resides in a :class:`~puzzlepiece.puzzle.Folder`, this method switches the tab
         to make this Piece visible.
@@ -324,7 +331,7 @@ class Piece(QtWidgets.QGroupBox):
             if param._setter is None:
                 param._value = value
 
-    def __getitem__(self, name):
+    def __getitem__(self, name) -> param.BaseParam:
         return self.params[name]
 
     def _ipython_key_completions_(self):
@@ -470,20 +477,28 @@ class Popup(Piece):
                               if True.
     """
 
-    def __init__(self, parent_piece, puzzle, custom_horizontal=False, *args, **kwargs):
+    def __init__(
+        self,
+        parent_piece: Piece,
+        puzzle: "Puzzle",
+        custom_horizontal: None | bool = None,
+        param_defaults: None | dict[str, typing.Any] = None,
+        *args,
+        **kwargs,
+    ):
         self._parent_piece = parent_piece
-        super().__init__(puzzle, custom_horizontal, *args, **kwargs)
+        super().__init__(puzzle, custom_horizontal, param_defaults, *args, **kwargs)
         self.inner_layout.setContentsMargins(0, 0, 0, 0)
 
     @property
-    def parent_piece(self):
+    def parent_piece(self) -> Piece:
         """
         A reference to this Popup's parent :class:`~puzzlepiece.piece.Piece`,
         the one that created it through :func:`puzzlepiece.piece.Piece.open_popup`.
         """
         return self._parent_piece
 
-    def add_child_params(self, param_names):
+    def add_child_params(self, param_names: list[str]) -> None:
         """
         Given a list of param names referring to params of the parent :class:`~puzzlepiece.piece.Piece`,
         add corresponding child params to this Popup.
@@ -497,7 +512,7 @@ class Popup(Piece):
         for name in param_names:
             self.params[name] = self.parent_piece.params[name].make_child_param()
 
-    def add_invisible_params(self):
+    def add_invisible_params(self) -> None:
         """
         Add all hidden params from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
         This lets you quickly make a Settings popup that adjusts the hidden params of a Piece.
@@ -513,7 +528,7 @@ class Popup(Piece):
         for name in invisible_params:
             self.params[name] = self.parent_piece.params[name].make_child_param()
 
-    def add_child_actions(self, action_names):
+    def add_child_actions(self, action_names: list[str]) -> None:
         """
         Given a list of action names referring to actions of the parent :class:`~puzzlepiece.piece.Piece`,
         add corresponding child actions to this Popup.
@@ -527,7 +542,7 @@ class Popup(Piece):
         for name in action_names:
             self.actions[name] = self.parent_piece.actions[name].make_child_action()
 
-    def add_invisible_actions(self):
+    def add_invisible_actions(self) -> None:
         """
         Add all hidden actions from the parent :class:`~puzzlepiece.piece.Piece` to this Popup.
         This lets you quickly make a Settings popup that displays additional actions for a Piece.

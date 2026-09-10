@@ -79,7 +79,9 @@ class Puzzle(QtWidgets.QWidget):
             if isinstance(app_instance, QtWidgets.QApplication):
                 app = app_instance
             else:
-                raise TypeError(f"QApplication({app_instance}) is either not running or not supported")
+                raise TypeError(
+                    f"QApplication({app_instance}) is either not running or not supported"
+                )
         self.app = app
         self.setWindowTitle(f"{name} (debug mode)" if self.debug else name)
         self._pieces = PieceDict()
@@ -192,19 +194,17 @@ class Puzzle(QtWidgets.QWidget):
             # For bonus points, we could set _old_excepthook to shell.excepthook,
             # which would result in all tracebacks appearing in the Notebook rather
             # than the console, but I think that is not desireable.
+            counter = 0
+
             def set_excepthook():
+                nonlocal counter
                 # Make sure we're out of the cell execution context
-                if (
-                    set_excepthook.counter < 100
-                    and sys.excepthook is not self._old_excepthook
-                ):
+                if counter < 100 and sys.excepthook is not self._old_excepthook:
                     # if not, we wait a little bit more
-                    set_excepthook.counter += 1
+                    counter += 1
                     QtCore.QTimer.singleShot(500, set_excepthook)
                 else:
                     sys.excepthook = self._excepthook
-
-            set_excepthook.counter = 0
 
             QtCore.QTimer.singleShot(0, set_excepthook)
         except NameError:
@@ -218,7 +218,7 @@ class Puzzle(QtWidgets.QWidget):
             sys.excepthook = self._excepthook
 
     @property
-    def pieces(self):
+    def pieces(self) -> "PieceDict":
         """
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
@@ -240,7 +240,7 @@ class Puzzle(QtWidgets.QWidget):
         return self._pieces
 
     @property
-    def globals(self):
+    def globals(self) -> "Globals":
         """
         A :class:`puzzlepiece.puzzle.Globals` object, effectively a dictionary,
         can be used for API modules that need to be shared by multiple Pieces.
@@ -251,7 +251,7 @@ class Puzzle(QtWidgets.QWidget):
         return self._globals
 
     @property
-    def debug(self):
+    def debug(self) -> bool:
         """
         A `bool` flag set on Puzzle creation. Pieces should act in debug mode if `True`.
         """
@@ -260,7 +260,14 @@ class Puzzle(QtWidgets.QWidget):
     # Adding elements
 
     def add_piece(
-        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        row: int,
+        column: int,
+        rowspan: int = 1,
+        colspan: int = 1,
+        param_defaults: None | dict[str, typing.Any] = None,
     ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the Puzzle.
@@ -287,7 +294,7 @@ class Puzzle(QtWidgets.QWidget):
 
         return piece
 
-    def replace_piece(self, name, new_piece):
+    def replace_piece(self, name: str, new_piece: piece.Piece | type[piece.Piece]):
         """
         Replace a named :class:`~puzzlepiece.piece.Piece` with a new one. Can be
         combined with ``importlib.reload`` to do live development on Pieces.
@@ -324,7 +331,9 @@ class Puzzle(QtWidgets.QWidget):
         old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         old_piece.close()
 
-    def add_folder(self, row, column, rowspan=1, colspan=1):
+    def add_folder(
+        self, row: int, column: int, rowspan: int = 1, colspan: int = 1
+    ) -> "Folder":
         """
         Adds a tabbed :class:`~puzzlepiece.puzzle.Folder` to the grid layout, and returns it.
 
@@ -340,7 +349,7 @@ class Puzzle(QtWidgets.QWidget):
         self._toplevel.append(folder)
         return folder
 
-    def register_piece(self, name, piece):
+    def register_piece(self, name: str, piece: piece.Piece) -> None:
         """
         Registers a :class:`~puzzlepiece.piece.Piece` object with the Puzzle.
         This is done by default when a :class:`~puzzlepiece.piece.Piece` is added with
@@ -353,7 +362,7 @@ class Puzzle(QtWidgets.QWidget):
 
     # Other methods
 
-    def process_events(self):
+    def process_events(self) -> None:
         """
         Forces the QApplication to process events that happened while a callback was executing.
         Can for example update plots while a long process is running, or run any keyboard
@@ -363,7 +372,7 @@ class Puzzle(QtWidgets.QWidget):
 
     _shutdown_threads = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
-    def run_worker(self, worker):
+    def run_worker(self, worker: threads.Worker) -> None:
         """
         Add a Worker to the Puzzle's Threadpool and runs it. See :class:`puzzlepiece.threads`
         for more details on how to set up a Worker.
@@ -526,12 +535,20 @@ class Puzzle(QtWidgets.QWidget):
         return layout
 
     def __getitem__(self, name):
+        try:
+            piece, param = name.split(":")
+            return self.pieces[piece].params[param]
+        except ValueError:
+            # key is not in the piece:param format
+            pass
         return self.pieces[name]
 
     def _ipython_key_completions_(self):
         values = list(self.pieces.keys())
-        for piece in self.pieces.keys():
-            values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
+        for piece_name in self.pieces.keys():
+            values.extend(
+                [f"{piece_name}:{param}" for param in self.pieces[piece_name].params]
+            )
         return values
 
     def __enter__(self):
@@ -542,13 +559,13 @@ class Puzzle(QtWidgets.QWidget):
             self._handle_close()
         return None
 
-    def run(self, text):
+    def run(self, text: str) -> None:
         """
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
         """
         parse.run(text, self)
 
-    def get_values(self, text):
+    def get_values(self, text: str) -> list[typing.Any]:
         """
         Get the values from multiple params as a list.
 
@@ -558,7 +575,7 @@ class Puzzle(QtWidgets.QWidget):
         """
         return [param.get_value() for param in parse.parse_params(text, self)]
 
-    def record_values(self, text, dictionary=None):
+    def record_values(self, text: str, dictionary: None | dict = None) -> dict:
         """
         Get the values from multiple params and record them in a dictionary.
         Useful for storing metadata about a measurement.
@@ -818,11 +835,13 @@ class PieceDict:
     A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
     a Piece tries to use another Piece that hasn't been registered.
 
-    It also allows indexing params directly by using this key format: ``[piece_name]:[param_name]``.
+    Note: when accessing this object directly, **it no longer allows indexing params directly by**
+    **using the** ``[piece_name]:[param_name]`` **format** You can still use this format while indexing
+    the :class:`~puzzlepiece.puzzle.Puzzle`. This is to make type checking a little more predictable.
     """
 
     def __init__(self):
-        self._dict = {}
+        self._dict: dict[str, "piece.Piece"] = {}
 
     def __setitem__(self, key, value):
         if key in self._dict:
@@ -833,14 +852,8 @@ class PieceDict:
         for key in self._dict:
             yield key
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> piece.Piece:
         if key not in self._dict:
-            try:
-                piece, param = key.split(":")
-                return self._dict[piece][param]
-            except ValueError:
-                # key is not in the piece:param format
-                pass
             raise KeyError(
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
@@ -958,4 +971,3 @@ class Globals(QtCore.QObject):
 
     def __repr__(self):
         return "Globals({})".format(", ".join(self._dict.keys()))
-
