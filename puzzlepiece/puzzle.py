@@ -110,8 +110,8 @@ class Puzzle(QtWidgets.QWidget):
 
         self._set_icon_later = threads.CallLater(set_icon)
         self._set_icon_later()
-        # # Set the application style, and make some tweaks to it if its the
-        # # puzzlepiece default (Fusion)
+        # Set the application style, and make some tweaks to it if its the
+        # puzzlepiece default (Fusion)
         self._stylesheet = "Popup {border:0;}"
         if style and style.lower() in [
             key.lower() for key in QtWidgets.QStyleFactory.keys()
@@ -156,7 +156,6 @@ class Puzzle(QtWidgets.QWidget):
                 if palette.color(palette.ColorRole.Window).lightness() < 150:
                     # Dark mode! Add a bit to the stylesheet to make group boxes stand out more
                     # (Fusion doesn't make them distinct enough by default)
-                    print("Dark mode!")
                     self._stylesheet += """
                         Puzzle > Piece, Piece > QGroupBox, Grid > Piece {
                             background-color: rgba(255, 255, 255, 15);
@@ -167,7 +166,10 @@ class Puzzle(QtWidgets.QWidget):
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
 
+        #: QGridLayout containing the Pieces. Can be used to change row ratios etc (https://doc.qt.io/qt-6/qgridlayout.html)
         self.inner_layout = QtWidgets.QGridLayout()
+        # The actual layout of this QWidget
+        self.outer_layout = super().layout()
         self.wrapper_layout.addLayout(self.inner_layout, 0, 0)
 
         if bottom_buttons:
@@ -216,6 +218,17 @@ class Puzzle(QtWidgets.QWidget):
             # a value to your Puzzle's ``custom_excepthook`` method.
             self._old_excepthook = sys.__excepthook__
             sys.excepthook = self._excepthook
+
+    @property
+    # pyrefly: ignore [bad-override]
+    def layout(self):
+        """
+        **DEPRECATED:** Please use :attribute:`puzzlepiece.puzzle.Puzzle.inner_layout`.
+        """
+        print(
+            "Puzzle.layout DEPRECATED: Please use `puzzlepiece.puzzle.Puzzle.inner_layout`."
+        )
+        return self.inner_layout
 
     @property
     def pieces(self) -> "PieceDict":
@@ -971,3 +984,26 @@ class Globals(QtCore.QObject):
 
     def __repr__(self):
         return "Globals({})".format(", ".join(self._dict.keys()))
+
+
+class PretendPuzzle:
+    """
+    **Deprecated:** please use the :class:`~puzzlepiece.puzzle.Puzzle` when instantiating
+    :class:`puzzlepiece.puzzle.Piece` objects, as the :class:`puzzlepiece.puzzle.Piece`
+    depends on a number of features that this placeholder does not provide.
+
+    A placeholder object used if no :class:`~puzzlepiece.puzzle.Puzzle` is provided
+    when creating a :class:`puzzlepiece.puzzle.Piece`. Its `debug` attribute is
+    always True.
+    """
+
+    debug = True
+
+    def __init__(self):
+        print("PretendPuzzle DEPRECATED: please use the Puzzle object directly.")
+
+    def process_events(self):
+        """
+        Like :func:`puzzlepiece.puzzle.Puzzle.process_events()`.
+        """
+        QtWidgets.QApplication.instance().processEvents()

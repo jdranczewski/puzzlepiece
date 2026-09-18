@@ -1,3 +1,4 @@
+import typing
 from qtpy import QtWidgets, QtCore, QtGui
 import os
 
@@ -25,13 +26,18 @@ class DataGrid(QtWidgets.QWidget):
     #: A Qt signal emitted when any data in the DataGrid changes (including when rows are added/removed).
     data_changed = QtCore.Signal()
 
-    def __init__(self, row_class, puzzle=None, parent_piece=None):
+    def __init__(
+        self,
+        row_class: "type[Row]",
+        puzzle: pzp.Puzzle,
+        parent_piece: None | pzp.Piece = None,
+    ):
         super().__init__()
         #: Reference to the parent :class:`~puzzlepiece.puzzle.Puzzle`.
-        self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+        self.puzzle = puzzle
         self.parent_piece = parent_piece
         self._row_class = row_class
-        row_example = row_class(self.puzzle)
+        row_example = row_class(self, self.puzzle)
         self.param_names = row_example.params.keys()
 
         self._tree = QtWidgets.QTreeWidget()
@@ -52,13 +58,13 @@ class DataGrid(QtWidgets.QWidget):
         self.rows_changed.connect(self.data_changed.emit)
 
     @property
-    def values(self):
+    def values(self) -> list[dict[str, typing.Any]]:
         """
         The current values for all params in the Rows (this does not invoke their getters).
         """
         return [{key: x[key].value for key in x.params} for x in self.rows]
 
-    def add_row(self, row_class=None, **kwargs):
+    def add_row(self, row_class: "None | type[Row]" = None, **kwargs) -> "Row":
         """
         Add a Row with default param values.
 
@@ -69,7 +75,7 @@ class DataGrid(QtWidgets.QWidget):
           to set param values in the new row
         """
         item = QtWidgets.QTreeWidgetItem(self._tree, (str(len(self.rows)),))
-        row_class = row_class or self._row_class
+        row_class = row_class if row_class is not None else self._row_class
         row = row_class(self, self.puzzle)
         row._populate_item(self._tree, item)
         self.rows.append(row)
@@ -84,7 +90,7 @@ class DataGrid(QtWidgets.QWidget):
         self.rows_changed.emit()
         return row
 
-    def remove_row(self, id):
+    def remove_row(self, id: int) -> None:
         """
         Remove the row with the given id.
 
@@ -97,10 +103,10 @@ class DataGrid(QtWidgets.QWidget):
             self._items[i].setText(0, str(i))
         self.rows_changed.emit()
 
-    def select_row(self, id):
+    def select_row(self, id: int) -> None:
         self._tree.setCurrentItem(self._items[id])
 
-    def get_index(self, row):
+    def get_index(self, row: "Row") -> int:
         """
         Get the current index of a given :class:`~puzzlepiece.extras.datagrid.Row` object.
 
@@ -109,7 +115,7 @@ class DataGrid(QtWidgets.QWidget):
         """
         return self.rows.index(row)
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Remove all rows.
         """
@@ -118,7 +124,7 @@ class DataGrid(QtWidgets.QWidget):
         self._items = []
         self.rows_changed.emit()
 
-    def add_changed_slot(self, param_name, function):
+    def add_changed_slot(self, param_name: str, function: typing.Callable):
         """
         Connect a Slot (usually a method) to the :attr:`~puzzlepiece.param.BaseParam.changed`
         Signal of the given param in all the rows (including Rows added in the future).
@@ -146,8 +152,8 @@ class Row:
     :parem puzzle: (optional) The parent Puzzle.
     """
 
-    def __init__(self, parent=None, puzzle=None):
-        self.puzzle = puzzle or pzp.puzzle.PretendPuzzle()
+    def __init__(self, parent: DataGrid, puzzle: pzp.Puzzle):
+        self.puzzle = puzzle
         self.parent = parent
         #: dict: A dictionary of this Row's params (see :class:`~puzzlepiece.param.BaseParam`). You can also directly index the Row object with the param name.
         self.params = {}

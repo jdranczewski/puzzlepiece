@@ -498,7 +498,7 @@ class Popup(Piece):
         """
         return self._parent_piece
 
-    def add_child_params(self, param_names: list[str]) -> None:
+    def add_child_params(self, param_names: typing.Iterable[str]) -> None:
         """
         Given a list of param names referring to params of the parent :class:`~puzzlepiece.piece.Piece`,
         add corresponding child params to this Popup.
@@ -528,7 +528,7 @@ class Popup(Piece):
         for name in invisible_params:
             self.params[name] = self.parent_piece.params[name].make_child_param()
 
-    def add_child_actions(self, action_names: list[str]) -> None:
+    def add_child_actions(self, action_names: typing.Iterable[str]) -> None:
         """
         Given a list of action names referring to actions of the parent :class:`~puzzlepiece.piece.Piece`,
         add corresponding child actions to this Popup.
