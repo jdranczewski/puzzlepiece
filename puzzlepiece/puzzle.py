@@ -221,9 +221,9 @@ class Puzzle(QtWidgets.QWidget):
 
     @property
     # pyrefly: ignore [bad-override]
-    def layout(self):
+    def layout(self) -> QtWidgets.QGridLayout:
         """
-        **DEPRECATED:** Please use :attribute:`puzzlepiece.puzzle.Puzzle.inner_layout`.
+        DEPRECATED: Please use :attr:`puzzlepiece.puzzle.Puzzle.inner_layout` instead.
         """
         print(
             "Puzzle.layout DEPRECATED: Please use `puzzlepiece.puzzle.Puzzle.inner_layout`."
