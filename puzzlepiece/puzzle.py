@@ -1,10 +1,12 @@
-from . import parse, threads
-
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
 import ctypes
 import os
 import sys
 import traceback
+import typing
+
+from qtpy import QtWidgets, QtCore, QtGui
+
+from . import parse, threads, piece
 
 
 class Puzzle(QtWidgets.QWidget):
@@ -59,11 +61,11 @@ class Puzzle(QtWidgets.QWidget):
 
     def __init__(
         self,
-        app=None,
-        name="Puzzle",
-        debug=True,
-        bottom_buttons=True,
-        style="Fusion",
+        app: None | QtWidgets.QApplication = None,
+        name: str = "Puzzle",
+        debug: bool = True,
+        bottom_buttons: bool = True,
+        style: str = "Fusion",
         *args,
         **kwargs,
     ):
@@ -72,7 +74,15 @@ class Puzzle(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         # Pieces can handle the debug flag as they wish
         self._debug = debug
-        self.app = app or QtWidgets.QApplication.instance()
+        if app is None:
+            app_instance = QtWidgets.QApplication.instance()
+            if isinstance(app_instance, QtWidgets.QApplication):
+                app = app_instance
+            else:
+                raise TypeError(
+                    f"QApplication({app_instance}) is either not running or not supported"
+                )
+        self.app = app
         self.setWindowTitle(f"{name} (debug mode)" if self.debug else name)
         self._pieces = PieceDict()
         self._globals = Globals()
@@ -100,8 +110,8 @@ class Puzzle(QtWidgets.QWidget):
 
         self._set_icon_later = threads.CallLater(set_icon)
         self._set_icon_later()
-        # # Set the application style, and make some tweaks to it if its the
-        # # puzzlepiece default (Fusion)
+        # Set the application style, and make some tweaks to it if its the
+        # puzzlepiece default (Fusion)
         self._stylesheet = "Popup {border:0;}"
         if style and style.lower() in [
             key.lower() for key in QtWidgets.QStyleFactory.keys()
@@ -146,7 +156,6 @@ class Puzzle(QtWidgets.QWidget):
                 if palette.color(palette.ColorRole.Window).lightness() < 150:
                     # Dark mode! Add a bit to the stylesheet to make group boxes stand out more
                     # (Fusion doesn't make them distinct enough by default)
-                    print("Dark mode!")
                     self._stylesheet += """
                         Puzzle > Piece, Piece > QGroupBox, Grid > Piece {
                             background-color: rgba(255, 255, 255, 15);
@@ -157,8 +166,11 @@ class Puzzle(QtWidgets.QWidget):
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
 
-        self.layout = QtWidgets.QGridLayout()
-        self.wrapper_layout.addLayout(self.layout, 0, 0)
+        #: QGridLayout containing the Pieces. Can be used to change row ratios etc (see the Qt documentation)
+        self.inner_layout = QtWidgets.QGridLayout()
+        # The actual layout of this QWidget
+        self.outer_layout = super().layout()
+        self.wrapper_layout.addLayout(self.inner_layout, 0, 0)
 
         if bottom_buttons:
             self.wrapper_layout.addLayout(self._button_layout(), 1, 0)
@@ -184,19 +196,17 @@ class Puzzle(QtWidgets.QWidget):
             # For bonus points, we could set _old_excepthook to shell.excepthook,
             # which would result in all tracebacks appearing in the Notebook rather
             # than the console, but I think that is not desireable.
+            counter = 0
+
             def set_excepthook():
+                nonlocal counter
                 # Make sure we're out of the cell execution context
-                if (
-                    set_excepthook.counter < 100
-                    and sys.excepthook is not self._old_excepthook
-                ):
+                if counter < 100 and sys.excepthook is not self._old_excepthook:
                     # if not, we wait a little bit more
-                    set_excepthook.counter += 1
+                    counter += 1
                     QtCore.QTimer.singleShot(500, set_excepthook)
                 else:
                     sys.excepthook = self._excepthook
-
-            set_excepthook.counter = 0
 
             QtCore.QTimer.singleShot(0, set_excepthook)
         except NameError:
@@ -210,7 +220,18 @@ class Puzzle(QtWidgets.QWidget):
             sys.excepthook = self._excepthook
 
     @property
-    def pieces(self):
+    # pyrefly: ignore [bad-override]
+    def layout(self) -> QtWidgets.QGridLayout:
+        """
+        **DEPRECATED** - Please use :attr:`puzzlepiece.puzzle.Puzzle.inner_layout` instead.
+        """
+        print(
+            "Puzzle.layout DEPRECATED: Please use `puzzlepiece.puzzle.Puzzle.inner_layout`."
+        )
+        return self.inner_layout
+
+    @property
+    def pieces(self) -> "PieceDict":
         """
         A :class:`~puzzlepiece.puzzle.PieceDict`, effectively a dictionary of
         :class:`~puzzlepiece.piece.Piece` objects. Can be used to access Pieces from within other Pieces.
@@ -232,7 +253,7 @@ class Puzzle(QtWidgets.QWidget):
         return self._pieces
 
     @property
-    def globals(self):
+    def globals(self) -> "Globals":
         """
         A :class:`puzzlepiece.puzzle.Globals` object, effectively a dictionary,
         can be used for API modules that need to be shared by multiple Pieces.
@@ -243,7 +264,7 @@ class Puzzle(QtWidgets.QWidget):
         return self._globals
 
     @property
-    def debug(self):
+    def debug(self) -> bool:
         """
         A `bool` flag set on Puzzle creation. Pieces should act in debug mode if `True`.
         """
@@ -252,7 +273,14 @@ class Puzzle(QtWidgets.QWidget):
     # Adding elements
 
     def add_piece(
-        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        row: int,
+        column: int,
+        rowspan: int = 1,
+        colspan: int = 1,
+        param_defaults: None | dict[str, typing.Any] = None,
     ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the Puzzle.
@@ -274,12 +302,12 @@ class Puzzle(QtWidgets.QWidget):
         self.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
-        self.layout.addWidget(piece, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(piece, row, column, rowspan, colspan)
         self._toplevel.append(piece)
 
         return piece
 
-    def replace_piece(self, name, new_piece):
+    def replace_piece(self, name: str, new_piece: piece.Piece | type[piece.Piece]):
         """
         Replace a named :class:`~puzzlepiece.piece.Piece` with a new one. Can be
         combined with ``importlib.reload`` to do live development on Pieces.
@@ -296,7 +324,7 @@ class Puzzle(QtWidgets.QWidget):
             new_piece = new_piece(self)
 
         if old_piece in self._toplevel:
-            self.layout.replaceWidget(
+            self.inner_layout.replaceWidget(
                 old_piece,
                 new_piece,
                 options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly,
@@ -316,7 +344,9 @@ class Puzzle(QtWidgets.QWidget):
         old_piece.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
         old_piece.close()
 
-    def add_folder(self, row, column, rowspan=1, colspan=1):
+    def add_folder(
+        self, row: int, column: int, rowspan: int = 1, colspan: int = 1
+    ) -> "Folder":
         """
         Adds a tabbed :class:`~puzzlepiece.puzzle.Folder` to the grid layout, and returns it.
 
@@ -328,11 +358,11 @@ class Puzzle(QtWidgets.QWidget):
         :rtype: puzzlepiece.puzzle.Folder
         """
         folder = Folder(self)
-        self.layout.addWidget(folder, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(folder, row, column, rowspan, colspan)
         self._toplevel.append(folder)
         return folder
 
-    def register_piece(self, name, piece):
+    def register_piece(self, name: str, piece: piece.Piece) -> None:
         """
         Registers a :class:`~puzzlepiece.piece.Piece` object with the Puzzle.
         This is done by default when a :class:`~puzzlepiece.piece.Piece` is added with
@@ -345,7 +375,7 @@ class Puzzle(QtWidgets.QWidget):
 
     # Other methods
 
-    def process_events(self):
+    def process_events(self) -> None:
         """
         Forces the QApplication to process events that happened while a callback was executing.
         Can for example update plots while a long process is running, or run any keyboard
@@ -353,9 +383,9 @@ class Puzzle(QtWidgets.QWidget):
         """
         self.app.processEvents()
 
-    _shutdown_threads = QtCore.Signal()
+    _shutdown_threads = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
-    def run_worker(self, worker):
+    def run_worker(self, worker: threads.Worker) -> None:
         """
         Add a Worker to the Puzzle's Threadpool and runs it. See :class:`puzzlepiece.threads`
         for more details on how to set up a Worker.
@@ -518,12 +548,20 @@ class Puzzle(QtWidgets.QWidget):
         return layout
 
     def __getitem__(self, name):
+        try:
+            piece, param = name.split(":")
+            return self.pieces[piece].params[param]
+        except ValueError:
+            # key is not in the piece:param format
+            pass
         return self.pieces[name]
 
     def _ipython_key_completions_(self):
         values = list(self.pieces.keys())
-        for piece in self.pieces.keys():
-            values.extend([f"{piece}:{param}" for param in self.pieces[piece].params])
+        for piece_name in self.pieces.keys():
+            values.extend(
+                [f"{piece_name}:{param}" for param in self.pieces[piece_name].params]
+            )
         return values
 
     def __enter__(self):
@@ -534,13 +572,13 @@ class Puzzle(QtWidgets.QWidget):
             self._handle_close()
         return None
 
-    def run(self, text):
+    def run(self, text: str) -> None:
         """
         Execute script commands for this Puzzle as described in :func:`puzzlepiece.parse.run`.
         """
         parse.run(text, self)
 
-    def get_values(self, text):
+    def get_values(self, text: str) -> list[typing.Any]:
         """
         Get the values from multiple params as a list.
 
@@ -550,7 +588,7 @@ class Puzzle(QtWidgets.QWidget):
         """
         return [param.get_value() for param in parse.parse_params(text, self)]
 
-    def record_values(self, text, dictionary=None):
+    def record_values(self, text: str, dictionary: None | dict = None) -> dict:
         """
         Get the values from multiple params and record them in a dictionary.
         Useful for storing metadata about a measurement.
@@ -590,7 +628,7 @@ class Puzzle(QtWidgets.QWidget):
         for widget in self._toplevel:
             widget.handle_shortcut(event)
 
-    _close_popups = QtCore.Signal()
+    _close_popups = typing.cast(QtCore.SignalInstance, QtCore.Signal())
 
     def _handle_close(self, event=None):
         """
@@ -651,12 +689,17 @@ class Folder(QtWidgets.QTabWidget):
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
 
-    def __init__(self, puzzle, *args, **kwargs):
+    def __init__(self, puzzle: Puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
         self.pieces = []
 
-    def add_piece(self, name, piece, param_defaults=None):
+    def add_piece(
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        param_defaults: None | dict[str, typing.Any] = None,
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` as a tab to this Folder, and registers it with the
         parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -686,7 +729,7 @@ class Folder(QtWidgets.QTabWidget):
 
         return piece
 
-    def add_grid(self, name):
+    def add_grid(self, name: str) -> "Grid":
         """
         Adds a :class:`~puzzlepiece.puzzle.Grid` as a tab to this Folder.
 
@@ -709,7 +752,9 @@ class Folder(QtWidgets.QTabWidget):
 
         :meta private:
         """
-        self.currentWidget().handle_shortcut(event)
+        current = self.currentWidget()
+        if isinstance(current, (piece.Piece, Folder, Grid)):
+            current.handle_shortcut(event)
 
     def _replace_piece(self, name, old_piece, new_piece):
         if old_piece in self.pieces:
@@ -737,15 +782,23 @@ class Grid(QtWidgets.QWidget):
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
 
-    def __init__(self, puzzle, *args, **kwargs):
+    def __init__(self, puzzle: Puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
         self.pieces = []
-        self.layout = QtWidgets.QGridLayout()
-        self.setLayout(self.layout)
+        self.folder: None | Folder = None
+        self.inner_layout = QtWidgets.QGridLayout()
+        self.setLayout(self.inner_layout)
 
     def add_piece(
-        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        row: int,
+        column: int,
+        rowspan: int = 1,
+        colspan: int = 1,
+        param_defaults: None | dict[str, typing.Any] = None,
     ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the parent
@@ -768,7 +821,7 @@ class Grid(QtWidgets.QWidget):
         self.puzzle.register_piece(name, piece)
         if param_defaults:
             piece._set_param_defaults(param_defaults)
-        self.layout.addWidget(piece, row, column, rowspan, colspan)
+        self.inner_layout.addWidget(piece, row, column, rowspan, colspan)
         self.pieces.append(piece)
         piece.folder = self
 
@@ -776,7 +829,7 @@ class Grid(QtWidgets.QWidget):
 
     def _replace_piece(self, name, old_piece, new_piece):
         if old_piece in self.pieces:
-            self.layout.replaceWidget(old_piece, new_piece)
+            self.inner_layout.replaceWidget(old_piece, new_piece)
             new_piece.setTitle(name)
             new_piece.folder = self
             self.pieces.remove(old_piece)
@@ -807,11 +860,13 @@ class PieceDict:
     A dictionary wrapper that enforces single-use of keys, and raises a more useful error when
     a Piece tries to use another Piece that hasn't been registered.
 
-    It also allows indexing params directly by using this key format: ``[piece_name]:[param_name]``.
+    Note: when accessing this object directly, **it no longer allows indexing params directly by**
+    **using the** ``[piece_name]:[param_name]`` **format** You can still use this format while indexing
+    the :class:`~puzzlepiece.puzzle.Puzzle`. This is to make type checking a little more predictable.
     """
 
     def __init__(self):
-        self._dict = {}
+        self._dict: dict[str, "piece.Piece"] = {}
 
     def __setitem__(self, key, value):
         if key in self._dict:
@@ -822,14 +877,8 @@ class PieceDict:
         for key in self._dict:
             yield key
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> piece.Piece:
         if key not in self._dict:
-            try:
-                piece, param = key.split(":")
-                return self._dict[piece][param]
-            except ValueError:
-                # key is not in the piece:param format
-                pass
             raise KeyError(
                 "A Piece with id '{}' is required, but doesn't exist".format(key)
             )
@@ -865,7 +914,7 @@ class Globals(QtCore.QObject):
         self._counts = {}
         super().__init__()
 
-    def require(self, name):
+    def require(self, name: str) -> bool:
         """
         Register that a Piece is using the variable with a given name. This will increase
         an internal counter to indicate the Piece having a hold on the variable.
@@ -891,7 +940,7 @@ class Globals(QtCore.QObject):
             self._counts[name] += 1
             return True
 
-    def release(self, name):
+    def release(self, name: str) -> bool:
         """
         Indicate that a Piece is done using the variable with a given name.
         This will decrease an internal counter to indicate the Piece is releasing
@@ -931,7 +980,7 @@ class Globals(QtCore.QObject):
     #: A Qt signal called when a Globals key is deleted. The key is passed as the argument.
     #: You can use this when multiple Pieces share the same API instance - the other Pieces
     #: can connect to this Signal and handle the API being deleted.
-    deleted = QtCore.Signal(object)
+    deleted = typing.cast(QtCore.SignalInstance, QtCore.Signal(object))
 
     def __delitem__(self, key):
         del self._dict[key]
@@ -951,12 +1000,19 @@ class Globals(QtCore.QObject):
 
 class PretendPuzzle:
     """
+    **Deprecated:** please use the :class:`~puzzlepiece.puzzle.Puzzle` when instantiating
+    :class:`puzzlepiece.puzzle.Piece` objects, as the :class:`puzzlepiece.puzzle.Piece`
+    depends on a number of features that this placeholder does not provide.
+
     A placeholder object used if no :class:`~puzzlepiece.puzzle.Puzzle` is provided
     when creating a :class:`puzzlepiece.puzzle.Piece`. Its `debug` attribute is
     always True.
     """
 
     debug = True
+
+    def __init__(self):
+        print("PretendPuzzle DEPRECATED: please use the Puzzle object directly.")
 
     def process_events(self):
         """

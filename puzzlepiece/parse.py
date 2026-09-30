@@ -1,9 +1,15 @@
 import re
 import time
+import typing
 from pyqtgraph.Qt import QtWidgets
 
+from . import param
 
-def parse_params(text, puzzle):
+if typing.TYPE_CHECKING:
+    from . import puzzle
+
+
+def parse_params(text: str, puzzle: "puzzle.Puzzle") -> list[param.BaseParam]:
     """
     Parse a string of the following format to construct references to :class:`~puzzlepiece.param.BaseParam` objects:
     ``[Piece name]:[param name], [Piece name]:[param name], ...``
@@ -26,7 +32,7 @@ def parse_params(text, puzzle):
     return result
 
 
-def run(text, puzzle):
+def run(text: str, puzzle: "puzzle.Puzzle") -> None:
     """
     Execute a set of puzzlepiece script commands.
 
@@ -86,7 +92,7 @@ def run(text, puzzle):
         puzzle.process_events()
 
 
-def format(text, puzzle):
+def format(text: str, puzzle: "puzzle.Puzzle") -> str:
     """
     Insert values of :class:`~puzzlepiece.param.BaseParam` objects
     into a string.
@@ -117,5 +123,7 @@ def format(text, puzzle):
                 result = str(param.get_value())
         elif len(elements) == 2:
             result = ("{" + elements[1] + "}").format(param.get_value())
+        else:
+            raise ValueError(f"Couldn't parse {m} correctly")
         text = text.replace(m, result)
     return text

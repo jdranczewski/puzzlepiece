@@ -2,7 +2,7 @@ puzzlepiece module
 ==================
 
 The main module contains convenience references to the :class:`puzzlepiece.puzzle.Puzzle`, :class:`puzzlepiece.piece.Piece`,
-and :any:`puzzlepiece.puzzle.QApp` objects,
+and :func:`puzzlepiece.puzzle.QApp` objects,
 so they can be directly referenced as `puzzlepiece.Puzzle`, `puzzlepiece.Piece`, and `puzzlepiece.QApp`.
 
 Importing it also gives direct access to:

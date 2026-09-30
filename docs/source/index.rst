@@ -146,7 +146,7 @@ Now you can interact with the GUI directly, or by running Python code in other c
 
    values = []
    for i in range(10):
-      values.append(puzzle["random_number"].params["number"].get_value())
+      values.append(puzzle["random_number:number"].get_value())
 
 **You can use this to create interactive Notebooks for your lab sessions,** where the GUI is used for
 alignment and inspection, and the Notebook records your notes and the measurement code!
