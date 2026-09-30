@@ -166,7 +166,7 @@ class Puzzle(QtWidgets.QWidget):
         self.wrapper_layout = QtWidgets.QGridLayout()
         self.setLayout(self.wrapper_layout)
 
-        #: QGridLayout containing the Pieces. Can be used to change row ratios etc (https://doc.qt.io/qt-6/qgridlayout.html)
+        #: QGridLayout containing the Pieces. Can be used to change row ratios etc (see the Qt documentation)
         self.inner_layout = QtWidgets.QGridLayout()
         # The actual layout of this QWidget
         self.outer_layout = super().layout()
@@ -223,7 +223,7 @@ class Puzzle(QtWidgets.QWidget):
     # pyrefly: ignore [bad-override]
     def layout(self) -> QtWidgets.QGridLayout:
         """
-        DEPRECATED: Please use :attr:`puzzlepiece.puzzle.Puzzle.inner_layout` instead.
+        **DEPRECATED** - Please use :attr:`puzzlepiece.puzzle.Puzzle.inner_layout` instead.
         """
         print(
             "Puzzle.layout DEPRECATED: Please use `puzzlepiece.puzzle.Puzzle.inner_layout`."
@@ -689,12 +689,17 @@ class Folder(QtWidgets.QTabWidget):
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
 
-    def __init__(self, puzzle, *args, **kwargs):
+    def __init__(self, puzzle: Puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
         self.pieces = []
 
-    def add_piece(self, name, piece, param_defaults=None):
+    def add_piece(
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        param_defaults: None | dict[str, typing.Any] = None,
+    ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` as a tab to this Folder, and registers it with the
         parent :class:`~puzzlepiece.puzzle.Puzzle`.
@@ -724,7 +729,7 @@ class Folder(QtWidgets.QTabWidget):
 
         return piece
 
-    def add_grid(self, name):
+    def add_grid(self, name: str) -> "Grid":
         """
         Adds a :class:`~puzzlepiece.puzzle.Grid` as a tab to this Folder.
 
@@ -777,7 +782,7 @@ class Grid(QtWidgets.QWidget):
     Best created with :func:`puzzlepiece.puzzle.Puzzle.add_folder`.
     """
 
-    def __init__(self, puzzle, *args, **kwargs):
+    def __init__(self, puzzle: Puzzle, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.puzzle = puzzle
         self.pieces = []
@@ -786,7 +791,14 @@ class Grid(QtWidgets.QWidget):
         self.setLayout(self.inner_layout)
 
     def add_piece(
-        self, name, piece, row, column, rowspan=1, colspan=1, param_defaults=None
+        self,
+        name: str,
+        piece: piece.Piece | type[piece.Piece],
+        row: int,
+        column: int,
+        rowspan: int = 1,
+        colspan: int = 1,
+        param_defaults: None | dict[str, typing.Any] = None,
     ):
         """
         Adds a :class:`~puzzlepiece.piece.Piece` to the grid layout, and registers it with the parent
@@ -902,7 +914,7 @@ class Globals(QtCore.QObject):
         self._counts = {}
         super().__init__()
 
-    def require(self, name):
+    def require(self, name: str) -> bool:
         """
         Register that a Piece is using the variable with a given name. This will increase
         an internal counter to indicate the Piece having a hold on the variable.
@@ -928,7 +940,7 @@ class Globals(QtCore.QObject):
             self._counts[name] += 1
             return True
 
-    def release(self, name):
+    def release(self, name: str) -> bool:
         """
         Indicate that a Piece is done using the variable with a given name.
         This will decrease an internal counter to indicate the Piece is releasing
